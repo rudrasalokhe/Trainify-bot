@@ -2,9 +2,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { MessageSquarePlus, Send, MessageSquare, Trash2, Download, ChevronLeft, ChevronRight, Copy, Upload, Plus, AlignLeft, Sparkles, Settings, RefreshCw, BookOpen, Star, Cpu } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { SignedIn, SignedOut, SignIn, UserButton, useAuth } from '@clerk/clerk-react';
-import Prism from 'prismjs';
-import 'prismjs/themes/prism-tomorrow.css'; // Dark theme for code highlighting
-import 'prismjs/components/prism-javascript'; // JavaScript syntax support
 
 interface Message {
   id: string;
@@ -67,6 +64,7 @@ const languages = [
   { value: 'Italian', label: 'Italiano' },
 ];
 
+// Base API URL - points to your deployed backend
 const API_BASE_URL = 'https://trainify-bot.onrender.com';
 
 function App() {
@@ -82,16 +80,17 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
   const [favoriteChats, setFavoriteChats] = useState<string[]>([]);
-  const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Load chats from localStorage on initial render
   useEffect(() => {
     const savedChats = localStorage.getItem('trainify-chats');
     if (savedChats) {
       try {
         const parsedChats = JSON.parse(savedChats);
+        // Convert string dates back to Date objects
         parsedChats.forEach((chat: Chat) => {
           chat.createdAt = new Date(chat.createdAt);
           chat.messages.forEach((msg: Message) => {
@@ -113,27 +112,31 @@ function App() {
       }
     }
     
+    // Focus input field when component mounts
     if (inputRef.current) {
       inputRef.current.focus();
     }
   }, []);
 
+  // Save chats to localStorage whenever they change
   useEffect(() => {
     localStorage.setItem('trainify-chats', JSON.stringify(chats));
   }, [chats]);
   
+  // Save favorites to localStorage
   useEffect(() => {
     localStorage.setItem('trainify-favorites', JSON.stringify(favoriteChats));
   }, [favoriteChats]);
 
-  useEffect(() => {
-    scrollToBottom();
-    Prism.highlightAll();
-  }, [currentChat?.messages]);
-
+  // Scroll to bottom of messages
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
+
+  // Scroll when messages update
+  useEffect(() => {
+    scrollToBottom();
+  }, [currentChat?.messages]);
 
   const createNewChat = () => {
     const newChat: Chat = {
@@ -146,8 +149,8 @@ function App() {
     };
     setChats([newChat, ...chats]);
     setCurrentChat(newChat);
-    setSelectedCode(null);
     
+    // Focus input field after creating new chat
     setTimeout(() => {
       if (inputRef.current) {
         inputRef.current.focus();
@@ -160,6 +163,7 @@ function App() {
       chat.id === chatId ? { ...chat, title: newTitle } : chat
     );
     setChats(updatedChats);
+    
     if (currentChat?.id === chatId) {
       setCurrentChat({ ...currentChat, title: newTitle });
     }
@@ -197,22 +201,6 @@ function App() {
     } catch (err) {
       console.error('Failed to copy text: ', err);
     }
-  };
-
-  const copyCodeToClipboard = async (code: string) => {
-    try {
-      await navigator.clipboard.writeText(code);
-      setCopiedMessageId('code-section');
-      setTimeout(() => setCopiedMessageId(null), 2000);
-    } catch (err) {
-      console.error('Failed to copy code: ', err);
-    }
-  };
-
-  const extractCode = (content: string): string | null => {
-    const codeBlockRegex = /```(?:javascript|js)?\n([\s\S]*?)```/;
-    const match = content.match(codeBlockRegex);
-    return match ? match[1].trim() : null;
   };
 
   const sendMessage = async (e?: React.FormEvent) => {
@@ -273,11 +261,7 @@ function App() {
       setChats(chats.map(chat => chat.id === currentChat.id ? updatedChat : chat));
       setCurrentChat(updatedChat);
       
-      const code = extractCode(botMessageContent);
-      if (code) {
-        setSelectedCode(code);
-      }
-
+      // Update chat title if it's the first message
       if (updatedChat.messages.length === 2 && updatedChat.title === 'New Conversation') {
         let title = userMessage.content;
         if (title.length > 30) {
@@ -303,6 +287,7 @@ function App() {
       setCurrentChat(updatedChat);
     } finally {
       setIsLoading(false);
+      // Focus input field after sending message
       if (inputRef.current) {
         inputRef.current.focus();
       }
@@ -313,9 +298,9 @@ function App() {
     setChats(chats.filter(chat => chat.id !== chatId));
     if (currentChat?.id === chatId) {
       setCurrentChat(null);
-      setSelectedCode(null);
     }
     setDeleteConfirm(null);
+    // Also remove from favorites if present
     if (favoriteChats.includes(chatId)) {
       setFavoriteChats(favoriteChats.filter(id => id !== chatId));
     }
@@ -338,7 +323,6 @@ function App() {
     ));
     setCurrentChat(updatedChat);
     setDeleteConfirm(null);
-    setSelectedCode(null);
   };
 
   const downloadPDF = () => {
@@ -433,6 +417,7 @@ function App() {
       setChats(chats.map(chat => chat.id === currentChat.id ? updatedChat : chat));
       setCurrentChat(updatedChat);
       
+      // Update chat title if it's the first message
       if (updatedChat.messages.length === 2 && updatedChat.title === 'New Conversation') {
         const title = `File: ${file.name}`;
         renameChat(updatedChat.id, title);
@@ -514,6 +499,7 @@ function App() {
     }
   };
   
+  // Group chats by date
   const groupChatsByDate = () => {
     const grouped: { [key: string]: Chat[] } = {};
     
@@ -612,7 +598,6 @@ function App() {
                       setChats([]);
                       setCurrentChat(null);
                       setFavoriteChats([]);
-                      setSelectedCode(null);
                     }
                   }}
                   className={`text-sm py-1 px-2 rounded ${
@@ -752,316 +737,264 @@ function App() {
 
         <div className="flex-1 flex flex-col">
           {currentChat ? (
-            <div className="flex flex-1">
-              <div className="flex-1 flex flex-col">
-                <div className={`p-4 border-b flex justify-between items-center shadow-md z-10 ${
-                  darkMode 
-                    ? 'border-zinc-800 bg-zinc-900' 
-                    : 'border-gray-200 bg-white'
-                }`}>
-                  <div>
-                    <h2 className="text-lg font-semibold flex items-center gap-2">
-                      <Sparkles size={18} className="text-blue-500" />
-                      {currentChat.title}
-                    </h2>
-                    <p className={`text-sm ${darkMode ? 'text-zinc-400' : 'text-gray-500'}`}>
-                      AI-Powered Language Assistant
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <select
-                      value={currentChat.modelType || 'standard'}
-                      onChange={handleModelChange}
-                      className={`rounded-lg px-3 py-1.5 border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                        darkMode 
-                          ? 'bg-zinc-800 text-zinc-100 border-zinc-700' 
-                          : 'bg-white text-gray-800 border-gray-200'
-                      }`}
-                      aria-label="Select model"
-                    >
-                      <option value="standard">Standard</option>
-                      <option value="advanced">Advanced</option>
-                    </select>
-                    
-                    <select
-                      value={currentChat.language || 'English'}
-                      onChange={handleLanguageChange}
-                      className={`rounded-lg px-3 py-1.5 border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                        darkMode 
-                          ? 'bg-zinc-800 text-zinc-100 border-zinc-700' 
-                          : 'bg-white text-gray-800 border-gray-200'
-                      }`}
-                      aria-label="Select language"
-                    >
-                      {languages.map((lang) => (
-                        <option key={lang.value} value={lang.value}>
-                          {lang.label}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      onClick={downloadPDF}
-                      className={`p-2 rounded-lg ${
-                        darkMode 
-                          ? 'bg-zinc-800 hover:bg-zinc-700' 
-                          : 'bg-gray-100 hover:bg-gray-200'
-                      }`}
-                      title="Download as PDF"
-                    >
-                      <Download size={20} />
-                    </button>
-                  </div>
+            <>
+              <div className={`p-4 border-b flex justify-between items-center shadow-md z-10 ${
+                darkMode 
+                  ? 'border-zinc-800 bg-zinc-900' 
+                  : 'border-gray-200 bg-white'
+              }`}>
+                <div>
+                  <h2 className="text-lg font-semibold flex items-center gap-2">
+                    <Sparkles size={18} className="text-blue-500" />
+                    {currentChat.title}
+                  </h2>
+                  <p className={`text-sm ${darkMode ? 'text-zinc-400' : 'text-gray-500'}`}>
+                    AI-Powered Language Assistant
+                  </p>
                 </div>
-
-                <div className="flex-1 overflow-y-auto p-4">
-                  {currentChat.messages.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-full text-center">
-                      <div className={`p-6 rounded-full mb-4 ${
-                        darkMode ? 'bg-zinc-800' : 'bg-gray-100'
-                      }`}>
-                        <MessageSquarePlus size={32} className={darkMode ? 'text-zinc-500' : 'text-gray-400'} />
-                      </div>
-                      <h3 className="text-xl font-medium mb-2">Start a conversation</h3>
-                      <p className={`max-w-md mb-6 ${
-                        darkMode ? 'text-zinc-400' : 'text-gray-500'
-                      }`}>
-                        Ask questions, upload files, or practice your language skills with Trainify AI
-                      </p>
-                      <div className="flex gap-3">
-                        <button
-                          onClick={() => {
-                            setInputMessage('Can you help me practice my conversation skills?');
-                            if (inputRef.current) {
-                              inputRef.current.focus();
-                            }
-                          }}
-                          className={`px-4 py-2 rounded-lg text-sm ${
-                            darkMode 
-                              ? 'bg-zinc-800 hover:bg-zinc-700' 
-                              : 'bg-gray-100 hover:bg-gray-200'
-                          }`}
-                        >
-                          Practice conversation
-                        </button>
-                        <button
-                          onClick={() => {
-                            setInputMessage('Explain this grammar rule: ');
-                            if (inputRef.current) {
-                              inputRef.current.focus();
-                            }
-                          }}
-                          className={`px-4 py-2 rounded-lg text-sm ${
-                            darkMode 
-                              ? 'bg-zinc-800 hover:bg-zinc-700' 
-                              : 'bg-gray-100 hover:bg-gray-200'
-                          }`}
-                        >
-                          Ask about grammar
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-6">
-                      {currentChat.messages.map((message) => (
-                        <div
-                          key={message.id}
-                          className={`group flex gap-3 ${
-                            message.sender === 'user' ? 'justify-end' : 'justify-start'
-                          }`}
-                        >
-                          <div
-                            className={`max-w-2xl rounded-lg p-4 relative ${
-                              message.sender === 'user'
-                                ? darkMode
-                                  ? 'bg-blue-900 text-blue-100'
-                                  : 'bg-blue-600 text-white'
-                                : darkMode
-                                ? 'bg-zinc-800 text-zinc-100'
-                                : 'bg-white text-gray-800 border border-gray-200'
-                            }`}
-                          >
-                            {message.fileInfo && (
-                              <div className={`text-xs mb-2 p-2 rounded ${
-                                darkMode ? 'bg-zinc-700' : 'bg-gray-100'
-                              }`}>
-                                <div className="flex items-center gap-1">
-                                  <span className="font-medium">File:</span>
-                                  <span>{message.fileInfo.name}</span>
-                                  <span className="opacity-70">({(message.fileInfo.size / 1024).toFixed(1)} KB)</span>
-                                </div>
-                              </div>
-                            )}
-                            <div 
-                              className="whitespace-pre-wrap"
-                              dangerouslySetInnerHTML={{ 
-                                __html: message.content.replace(
-                                  /```(?:javascript|js)?\n([\s\S]*?)```/,
-                                  '<pre><code class="language-javascript">$1</code></pre>'
-                                )
-                              }}
-                            />
-                            <div className={`absolute text-xs ${
-                              message.sender === 'user'
-                                ? darkMode
-                                  ? 'text-blue-300'
-                                  : 'text-blue-100'
-                                : darkMode
-                                ? 'text-zinc-500'
-                                : 'text-gray-500'
-                            } bottom-1 right-2`}>
-                              {formatTime(message.timestamp)}
-                            </div>
-                            <div className={`absolute flex gap-1 ${
-                              message.sender === 'user' ? '-left-10' : '-right-10'
-                            } top-0 opacity-0 group-hover:opacity-100 transition-opacity`}>
-                              <button
-                                onClick={() => copyMessageToClipboard(message.content, message.id)}
-                                className={`p-1.5 rounded-full ${
-                                  darkMode 
-                                    ? 'hover:bg-zinc-700 hover:text-blue-400' 
-                                    : 'hover:bg-gray-200 hover:text-blue-600'
-                                }`}
-                                title="Copy message"
-                              >
-                                <Copy size={16} />
-                              </button>
-                              {message.sender === 'user' && (
-                                <button
-                                  onClick={() => setDeleteConfirm({ id: message.id, type: 'message' })}
-                                  className={`p-1.5 rounded-full ${
-                                    darkMode 
-                                      ? 'hover:bg-zinc-700 hover:text-red-400' 
-                                      : 'hover:bg-gray-200 hover:text-red-600'
-                                  }`}
-                                  title="Delete message"
-                                >
-                                  <Trash2 size={16} />
-                                </button>
-                              )}
-                            </div>
-                            {copiedMessageId === message.id && (
-                              <div className={`absolute -top-8 left-1/2 transform -translate-x-1/2 px-2 py-1 rounded text-xs ${
-                                darkMode ? 'bg-zinc-700' : 'bg-gray-200'
-                              }`}>
-                                Copied!
-                              </div>
-                            )}
-                            {deleteConfirm?.id === message.id && deleteConfirm.type === 'message' && (
-                              <DeleteConfirm
-                                message="Delete this message?"
-                                onConfirm={() => deleteMessage(message.id)}
-                                onCancel={() => setDeleteConfirm(null)}
-                              />
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                      <div ref={messagesEndRef} />
-                    </div>
-                  )}
-                </div>
-
-                <div className={`p-4 border-t ${
-                  darkMode ? 'border-zinc-800 bg-zinc-900' : 'border-gray-200 bg-white'
-                }`}>
-                  <form onSubmit={sendMessage} className="flex gap-2">
-                    <div className="flex-1 relative">
-                      <input
-                        ref={inputRef}
-                        type="text"
-                        value={inputMessage}
-                        onChange={(e) => setInputMessage(e.target.value)}
-                        placeholder="Type your message..."
-                        className={`w-full rounded-lg py-3 px-4 pr-12 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                          darkMode 
-                            ? 'bg-zinc-800 text-white placeholder-zinc-400' 
-                            : 'bg-white text-gray-900 placeholder-gray-400 border border-gray-200'
-                        }`}
-                        disabled={isLoading || isUploading}
-                      />
-                      <div className="absolute right-2 top-2 flex gap-1">
-                        <button
-                          type="button"
-                          onClick={triggerFileInput}
-                          disabled={isLoading || isUploading}
-                          className={`p-2 rounded-full ${
-                            darkMode 
-                              ? 'hover:bg-zinc-700 text-zinc-400 hover:text-zinc-300' 
-                              : 'hover:bg-gray-100 text-gray-500 hover:text-gray-600'
-                          }`}
-                          title="Upload file"
-                        >
-                          <Upload size={20} />
-                        </button>
-                        <input
-                          type="file"
-                          ref={fileInputRef}
-                          onChange={handleFileUpload}
-                          className="hidden"
-                          accept=".txt,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
-                          disabled={isLoading || isUploading}
-                        />
-                      </div>
-                    </div>
-                    <button
-                      type="submit"
-                      disabled={!inputMessage.trim() || isLoading || isUploading}
-                      className={`p-3 rounded-lg flex items-center justify-center ${
-                        inputMessage.trim() && !isLoading && !isUploading
-                          ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                          : darkMode
-                          ? 'bg-zinc-800 text-zinc-500'
-                          : 'bg-gray-200 text-gray-500'
-                      } transition-colors`}
-                    >
-                      {isLoading || isUploading ? (
-                        <RefreshCw size={20} className="animate-spin" />
-                      ) : (
-                        <Send size={20} />
-                      )}
-                    </button>
-                  </form>
-                  <div className={`text-xs mt-2 text-center ${
-                    darkMode ? 'text-zinc-500' : 'text-gray-500'
-                  }`}>
-                    {isUploading ? 'Uploading file...' : 'Trainify may produce inaccurate information'}
-                  </div>
+                <div className="flex items-center gap-3">
+                  <select
+                    value={currentChat.modelType || 'standard'}
+                    onChange={handleModelChange}
+                    className={`rounded-lg px-3 py-1.5 border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      darkMode 
+                        ? 'bg-zinc-800 text-zinc-100 border-zinc-700' 
+                        : 'bg-white text-gray-800 border-gray-200'
+                    }`}
+                    aria-label="Select model"
+                  >
+                    <option value="standard">Standard</option>
+                    <option value="advanced">Advanced</option>
+                  </select>
+                  
+                  <select
+                    value={currentChat.language || 'English'}
+                    onChange={handleLanguageChange}
+                    className={`rounded-lg px-3 py-1.5 border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      darkMode 
+                        ? 'bg-zinc-800 text-zinc-100 border-zinc-700' 
+                        : 'bg-white text-gray-800 border-gray-200'
+                    }`}
+                    aria-label="Select language"
+                  >
+                    {languages.map((lang) => (
+                      <option key={lang.value} value={lang.value}>
+                        {lang.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
-              {selectedCode && (
-                <div className={`w-96 border-l ${
-                  darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-gray-200'
-                } flex flex-col`}>
-                  <div className="p-4 border-b flex justify-between items-center">
-                    <h3 className="text-sm font-medium">Code Preview</h3>
-                    <button
-                      onClick={() => copyCodeToClipboard(selectedCode)}
-                      className={`p-2 rounded-full ${
-                        darkMode 
-                          ? 'hover:bg-zinc-800 text-zinc-400 hover:text-blue-400' 
-                          : 'hover:bg-gray-100 text-gray-600 hover:text-blue-600'
-                      }`}
-                      title="Copy code"
-                    >
-                      <Copy size={20} />
-                    </button>
-                  </div>
-                  <div className="flex-1 overflow-y-auto p-4">
-                    <pre className="language-javascript">
-                      <code>{selectedCode}</code>
-                    </pre>
-                  </div>
-                  {copiedMessageId === 'code-section' && (
-                    <div className={`text-center text-xs p-2 ${
-                      darkMode ? 'bg-zinc-700 text-zinc-200' : 'bg-gray-200 text-gray-700'
+              <div className="flex-1 overflow-y-auto p-4">
+                {currentChat.messages.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full text-center">
+                    <div className={`p-6 rounded-full mb-4 ${
+                      darkMode ? 'bg-zinc-800' : 'bg-gray-100'
                     }`}>
-                      Copied to clipboard!
+                      <MessageSquarePlus size={32} className={darkMode ? 'text-zinc-500' : 'text-gray-400'} />
                     </div>
-                  )}
+                    <h3 className="text-xl font-medium mb-2">Start a conversation</h3>
+                    <p className={`max-w-md mb-6 ${
+                      darkMode ? 'text-zinc-400' : 'text-gray-500'
+                    }`}>
+                      Ask questions, upload files, or practice your language skills with Trainify AI
+                    </p>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => {
+                          setInputMessage('Can you help me practice my conversation skills?');
+                          if (inputRef.current) {
+                            inputRef.current.focus();
+                          }
+                        }}
+                        className={`px-4 py-2 rounded-lg text-sm ${
+                          darkMode 
+                            ? 'bg-zinc-800 hover:bg-zinc-700' 
+                            : 'bg-gray-100 hover:bg-gray-200'
+                        }`}
+                      >
+                        Practice conversation
+                      </button>
+                      <button
+                        onClick={() => {
+                          setInputMessage('Explain this grammar rule: ');
+                          if (inputRef.current) {
+                            inputRef.current.focus();
+                          }
+                        }}
+                        className={`px-4 py-2 rounded-lg text-sm ${
+                          darkMode 
+                            ? 'bg-zinc-800 hover:bg-zinc-700' 
+                            : 'bg-gray-100 hover:bg-gray-200'
+                        }`}
+                      >
+                        Ask about grammar
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {currentChat.messages.map((message) => (
+                      <div
+                        key={message.id}
+                        className={`group flex gap-3 ${
+                          message.sender === 'user' ? 'justify-end' : 'justify-start'
+                        }`}
+                      >
+                        <div
+                          className={`max-w-3xl rounded-lg p-4 relative ${
+                            message.sender === 'user'
+                              ? darkMode
+                                ? 'bg-blue-900 text-blue-100'
+                                : 'bg-blue-600 text-white'
+                              : darkMode
+                              ? 'bg-zinc-800 text-zinc-100'
+                              : 'bg-white text-gray-800 border border-gray-200'
+                          }`}
+                        >
+                          {message.fileInfo && (
+                            <div className={`text-xs mb-2 p-2 rounded ${
+                              darkMode ? 'bg-zinc-700' : 'bg-gray-100'
+                            }`}>
+                              <div className="flex items-center gap-1">
+                                <span className="font-medium">File:</span>
+                                <span>{message.fileInfo.name}</span>
+                                <span className="opacity-70">({(message.fileInfo.size / 1024).toFixed(1)} KB)</span>
+                              </div>
+                            </div>
+                          )}
+                          <div className="whitespace-pre-wrap">
+                            {message.content}
+                          </div>
+                          <div className={`absolute text-xs ${
+                            message.sender === 'user'
+                              ? darkMode
+                                ? 'text-blue-300'
+                                : 'text-blue-100'
+                              : darkMode
+                              ? 'text-zinc-500'
+                              : 'text-gray-500'
+                          } bottom-1 right-2`}>
+                            {formatTime(message.timestamp)}
+                          </div>
+                          <div className={`absolute flex gap-1 ${
+                            message.sender === 'user' ? '-left-10' : '-right-10'
+                          } top-0 opacity-0 group-hover:opacity-100 transition-opacity`}>
+                            <button
+                              onClick={() => copyMessageToClipboard(message.content, message.id)}
+                              className={`p-1.5 rounded-full ${
+                                darkMode 
+                                  ? 'hover:bg-zinc-700 hover:text-blue-400' 
+                                  : 'hover:bg-gray-200 hover:text-blue-600'
+                              }`}
+                              title="Copy message"
+                            >
+                              <Copy size={16} />
+                            </button>
+                            {message.sender === 'user' && (
+                              <button
+                                onClick={() => setDeleteConfirm({ id: message.id, type: 'message' })}
+                                className={`p-1.5 rounded-full ${
+                                  darkMode 
+                                    ? 'hover:bg-zinc-700 hover:text-red-400' 
+                                    : 'hover:bg-gray-200 hover:text-red-600'
+                                }`}
+                                title="Delete message"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            )}
+                          </div>
+                          {copiedMessageId === message.id && (
+                            <div className={`absolute -top-8 left-1/2 transform -translate-x-1/2 px-2 py-1 rounded text-xs ${
+                              darkMode ? 'bg-zinc-700' : 'bg-gray-200'
+                            }`}>
+                              Copied!
+                            </div>
+                          )}
+                          {deleteConfirm?.id === message.id && deleteConfirm.type === 'message' && (
+                            <DeleteConfirm
+                              message="Delete this message?"
+                              onConfirm={() => deleteMessage(message.id)}
+                              onCancel={() => setDeleteConfirm(null)}
+                            />
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    <div ref={messagesEndRef} />
+                  </div>
+                )}
+              </div>
+
+              <div className={`p-4 border-t ${
+                darkMode ? 'border-zinc-800 bg-zinc-900' : 'border-gray-200 bg-white'
+              }`}>
+                <form onSubmit={sendMessage} className="flex gap-2">
+                  <div className="flex-1 relative">
+                    <input
+                      ref={inputRef}
+                      type="text"
+                      value={inputMessage}
+                      onChange={(e) => setInputMessage(e.target.value)}
+                      placeholder="Type your message..."
+                      className={`w-full rounded-lg py-3 px-4 pr-12 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        darkMode 
+                          ? 'bg-zinc-800 text-white placeholder-zinc-400' 
+                          : 'bg-white text-gray-900 placeholder-gray-400 border border-gray-200'
+                      }`}
+                      disabled={isLoading || isUploading}
+                    />
+                    <div className="absolute right-2 top-2 flex gap-1">
+                      <button
+                        type="button"
+                        onClick={triggerFileInput}
+                        disabled={isLoading || isUploading}
+                        className={`p-2 rounded-full ${
+                          darkMode 
+                            ? 'hover:bg-zinc-700 text-zinc-400 hover:text-zinc-300' 
+                            : 'hover:bg-gray-100 text-gray-500 hover:text-gray-600'
+                        }`}
+                        title="Upload file"
+                      >
+                        <Upload size={20} />
+                      </button>
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileUpload}
+                        className="hidden"
+                        accept=".txt,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+                        disabled={isLoading || isUploading}
+                      />
+                    </div>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={!inputMessage.trim() || isLoading || isUploading}
+                    className={`p-3 rounded-lg flex items-center justify-center ${
+                      inputMessage.trim() && !isLoading && !isUploading
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                        : darkMode
+                        ? 'bg-zinc-800 text-zinc-500'
+                        : 'bg-gray-200 text-gray-500'
+                    } transition-colors`}
+                  >
+                    {isLoading || isUploading ? (
+                      <RefreshCw size={20} className="animate-spin" />
+                    ) : (
+                      <Send size={20} />
+                    )}
+                  </button>
+                </form>
+                <div className={`text-xs mt-2 text-center ${
+                  darkMode ? 'text-zinc-500' : 'text-gray-500'
+                }`}>
+                  {isUploading ? 'Uploading file...' : 'Trainify may produce inaccurate information'}
                 </div>
-              )}
-            </div>
+              </div>
+            </>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center">
               <div className={`p-6 rounded-full mb-6 ${
@@ -1090,13 +1023,6 @@ function App() {
                     <AlignLeft size={18} className={darkMode ? 'text-blue-400' : 'text-blue-600'} />
                     <h3 className="font-medium">Language Practice</h3>
                   </div>
-                 ]
-
-Human: continue from where you left off and complete the code
-
-Here's the continuation and completion of the code from where it was cut off:
-
-```jsx
                   <p className={`text-sm ${
                     darkMode ? 'text-zinc-400' : 'text-gray-600'
                   }`}>
