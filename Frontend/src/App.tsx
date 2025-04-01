@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageSquarePlus, Send, MessageSquare, Trash2, Download, ChevronLeft, ChevronRight, Copy, Upload, Plus, AlignLeft, Sparkles, Settings, RefreshCw, BookOpen, Star, Cpu } from 'lucide-react';
+import { MessageSquarePlus, Send, MessageSquare, Trash2, Download, ChevronLeft, ChevronRight, Copy, Upload, Plus, AlignLeft, Sparkles, Settings, RefreshCw, BookOpen, Star, Cpu, Menu, X } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { SignedIn, SignedOut, SignIn, UserButton, useAuth } from '@clerk/clerk-react';
 
@@ -72,7 +72,7 @@ function App() {
   const [chats, setChats] = useState<Chat[]>([]);
   const [currentChat, setCurrentChat] = useState<Chat | null>(null);
   const [inputMessage, setInputMessage] = useState('');
-  const [showSidebar, setShowSidebar] = useState(true);
+  const [showSidebar, setShowSidebar] = useState(window.innerWidth > 768);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string, type: 'chat' | 'message' } | null>(null);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -80,9 +80,20 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
   const [favoriteChats, setFavoriteChats] = useState<string[]>([]);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Check screen size and adjust sidebar
+  useEffect(() => {
+    const handleResize = () => {
+      setShowSidebar(window.innerWidth > 768);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Load chats from localStorage on initial render
   useEffect(() => {
@@ -149,6 +160,7 @@ function App() {
     };
     setChats([newChat, ...chats]);
     setCurrentChat(newChat);
+    setShowMobileMenu(false); // Close mobile menu on new chat
     
     // Focus input field after creating new chat
     setTimeout(() => {
@@ -183,6 +195,7 @@ function App() {
     };
     setChats([newChat, ...chats]);
     setCurrentChat(newChat);
+    setShowMobileMenu(false); // Close mobile menu on copy
   };
 
   const toggleFavorite = (chatId: string) => {
@@ -520,7 +533,7 @@ function App() {
     <div className={`flex h-screen ${darkMode ? 'bg-gradient-to-b from-zinc-900 to-zinc-950 text-zinc-100' : 'bg-gradient-to-b from-gray-50 to-gray-100 text-gray-900'}`}>
       <SignedOut>
         <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-blue-900 to-purple-900">
-          <div className="p-8 rounded-xl shadow-2xl w-96 backdrop-blur-sm bg-black bg-opacity-20 border border-white border-opacity-10">
+          <div className="p-8 rounded-xl shadow-2xl w-full max-w-md mx-4 backdrop-blur-sm bg-black bg-opacity-20 border border-white border-opacity-10">
             <div className="flex items-center justify-center mb-6">
               <Cpu size={32} className="text-blue-400 mr-2" />
               <h2 className="text-3xl font-bold text-white">Trainify.ai</h2>
@@ -536,29 +549,55 @@ function App() {
       </SignedOut>
 
       <SignedIn>
-        <button
-          onClick={() => setShowSidebar(!showSidebar)}
-          className={`absolute top-4 left-4 z-20 p-2 rounded-full transition-colors shadow-lg ${
-            darkMode 
-              ? 'bg-zinc-800 hover:bg-zinc-700' 
-              : 'bg-white hover:bg-gray-100 border border-gray-200'
-          }`}
-          aria-label={showSidebar ? "Hide sidebar" : "Show sidebar"}
-        >
-          {showSidebar ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
-        </button>
+        {/* Mobile header */}
+        <div className={`md:hidden fixed top-0 left-0 right-0 z-30 p-3 flex justify-between items-center ${
+          darkMode ? 'bg-zinc-900 border-b border-zinc-800' : 'bg-white border-b border-gray-200'
+        }`}>
+          <button
+            onClick={() => setShowMobileMenu(!showMobileMenu)}
+            className="p-2 rounded-full"
+          >
+            {showMobileMenu ? (
+              <X size={20} className={darkMode ? 'text-zinc-300' : 'text-gray-700'} />
+            ) : (
+              <Menu size={20} className={darkMode ? 'text-zinc-300' : 'text-gray-700'} />
+            )}
+          </button>
+          
+          <div className="flex items-center gap-2">
+            <Cpu size={20} className="text-blue-500" />
+            <h1 className="font-bold">Trainify.ai</h1>
+          </div>
+          
+          <div className="w-8">
+            <UserButton afterSignOutUrl="/" />
+          </div>
+        </div>
 
-        <div className={`${showSidebar ? 'w-80' : 'w-0'} ${
+        {/* Mobile menu overlay */}
+        {showMobileMenu && (
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden"
+            onClick={() => setShowMobileMenu(false)}
+          />
+        )}
+
+        {/* Sidebar - mobile version */}
+        <div className={`fixed md:relative z-20 h-full transition-transform duration-300 ease-in-out ${
+          showMobileMenu ? 'translate-x-0' : '-translate-x-full'
+        } md:translate-x-0 ${
+          showSidebar ? 'w-72' : 'w-0'
+        } ${
           darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-gray-200'
-        } border-r flex flex-col transition-all duration-300 overflow-hidden relative z-10 shadow-xl`}>
+        } border-r flex flex-col overflow-hidden shadow-xl`}>
           <div className={`p-4 border-b flex justify-between items-center ${
             darkMode ? 'border-zinc-800' : 'border-gray-200'
-          }`}>
+          } mt-12 md:mt-0`}>
             <div className="flex items-center gap-2">
               <Cpu size={24} className="text-blue-500" />
               <h1 className="font-bold text-xl">Trainify.ai</h1>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="md:flex items-center gap-2 hidden">
               <button 
                 onClick={() => setShowSettings(!showSettings)} 
                 className={`p-2 rounded-full ${
@@ -620,7 +659,7 @@ function App() {
             New Conversation
           </button>
           
-          <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
+          <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent pb-20 md:pb-0">
             {chats.length === 0 ? (
               <div className={`text-center p-8 ${darkMode ? 'text-zinc-500' : 'text-gray-500'}`}>
                 <MessageSquare size={32} className="mx-auto mb-2 opacity-50" />
@@ -647,7 +686,10 @@ function App() {
                             ? 'hover:bg-zinc-800' 
                             : 'hover:bg-gray-100')
                       }`}
-                      onClick={() => setCurrentChat(chat)}
+                      onClick={() => {
+                        setCurrentChat(chat);
+                        setShowMobileMenu(false);
+                      }}
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
@@ -735,7 +777,7 @@ function App() {
           </div>
         </div>
 
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col pt-12 md:pt-0">
           {currentChat ? (
             <>
               <div className={`p-4 border-b flex justify-between items-center shadow-md z-10 ${
@@ -743,14 +785,22 @@ function App() {
                   ? 'border-zinc-800 bg-zinc-900' 
                   : 'border-gray-200 bg-white'
               }`}>
-                <div>
-                  <h2 className="text-lg font-semibold flex items-center gap-2">
-                    <Sparkles size={18} className="text-blue-500" />
-                    {currentChat.title}
-                  </h2>
-                  <p className={`text-sm ${darkMode ? 'text-zinc-400' : 'text-gray-500'}`}>
-                    AI-Powered Language Assistant
-                  </p>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => setShowMobileMenu(!showMobileMenu)}
+                    className="md:hidden p-1"
+                  >
+                    <Menu size={20} className={darkMode ? 'text-zinc-300' : 'text-gray-700'} />
+                  </button>
+                  <div>
+                    <h2 className="text-lg font-semibold flex items-center gap-2">
+                      <Sparkles size={18} className="text-blue-500" />
+                      {currentChat.title}
+                    </h2>
+                    <p className={`text-sm ${darkMode ? 'text-zinc-400' : 'text-gray-500'}`}>
+                      AI-Powered Language Assistant
+                    </p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <select
@@ -786,7 +836,7 @@ function App() {
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-4">
+              <div className="flex-1 overflow-y-auto p-4 pb-24 md:pb-4">
                 {currentChat.messages.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full text-center">
                     <div className={`p-6 rounded-full mb-4 ${
@@ -800,7 +850,7 @@ function App() {
                     }`}>
                       Ask questions, upload files, or practice your language skills with Trainify AI
                     </p>
-                    <div className="flex gap-3">
+                    <div className="flex gap-3 flex-wrap justify-center">
                       <button
                         onClick={() => {
                           setInputMessage('Can you help me practice my conversation skills?');
@@ -843,7 +893,7 @@ function App() {
                         }`}
                       >
                         <div
-                          className={`max-w-3xl rounded-lg p-4 relative ${
+                          className={`max-w-[90%] md:max-w-3xl rounded-lg p-4 relative ${
                             message.sender === 'user'
                               ? darkMode
                                 ? 'bg-blue-900 text-blue-100'
@@ -928,7 +978,7 @@ function App() {
                 )}
               </div>
 
-              <div className={`p-4 border-t ${
+              <div className={`fixed bottom-0 left-0 right-0 md:relative p-4 border-t ${
                 darkMode ? 'border-zinc-800 bg-zinc-900' : 'border-gray-200 bg-white'
               }`}>
                 <form onSubmit={sendMessage} className="flex gap-2">
@@ -996,14 +1046,14 @@ function App() {
               </div>
             </>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center">
+            <div className="flex-1 flex flex-col items-center justify-center pt-12 md:pt-0">
               <div className={`p-6 rounded-full mb-6 ${
                 darkMode ? 'bg-zinc-800' : 'bg-gray-100'
               }`}>
                 <MessageSquare size={48} className={darkMode ? 'text-zinc-500' : 'text-gray-400'} />
               </div>
               <h2 className="text-2xl font-medium mb-2">No conversation selected</h2>
-              <p className={`max-w-md text-center mb-6 ${
+              <p className={`max-w-md text-center mb-6 px-4 ${
                 darkMode ? 'text-zinc-400' : 'text-gray-500'
               }`}>
                 Select an existing conversation from the sidebar or create a new one to get started
@@ -1015,7 +1065,7 @@ function App() {
                 <Plus size={20} />
                 New Conversation
               </button>
-              <div className="mt-8 grid grid-cols-2 gap-4 max-w-md">
+              <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4 max-w-md px-4">
                 <div className={`p-4 rounded-lg ${
                   darkMode ? 'bg-zinc-800' : 'bg-gray-100'
                 }`}>
