@@ -1,6 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageSquarePlus, Send, MessageSquare, Trash2, Download, ChevronLeft, ChevronRight, Copy, Upload, Plus, AlignLeft, Sparkles, Settings, RefreshCw, BookOpen, Star, Cpu, Menu, X } from 'lucide-react';
+import { 
+  MessageSquarePlus, Send, MessageSquare, Trash2, Download, 
+  ChevronLeft, ChevronRight, Copy, Upload, Plus, AlignLeft, 
+  Sparkles, Settings, RefreshCw, BookOpen, Star, Cpu, Menu, X,
+  Languages, FileText, Bot, User, Mic, MicOff, Image, Video
+} from 'lucide-react';
 import { jsPDF } from 'jspdf';
+import { motion, AnimatePresence } from 'framer-motion';
 import { SignedIn, SignedOut, SignIn, UserButton, useAuth } from '@clerk/clerk-react';
 
 interface Message {
@@ -12,6 +18,7 @@ interface Message {
     name: string;
     size: number;
     type: string;
+    url?: string;
   };
 }
 
@@ -22,6 +29,7 @@ interface Chat {
   createdAt: Date;
   language?: string;
   modelType?: 'standard' | 'advanced';
+  isPinned?: boolean;
 }
 
 interface DeleteConfirmProps {
@@ -31,40 +39,44 @@ interface DeleteConfirmProps {
 }
 
 const DeleteConfirm: React.FC<DeleteConfirmProps> = ({ onConfirm, onCancel, message }) => (
-  <div className="absolute right-0 top-0 bg-zinc-800 rounded-lg shadow-xl p-3 z-10 border border-zinc-700 animate-fade-in">
+  <motion.div
+    initial={{ opacity: 0, y: -10 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, y: -10 }}
+    className="absolute right-0 top-0 bg-zinc-800 rounded-lg shadow-xl p-3 z-10 border border-zinc-700"
+  >
     <p className="text-sm mb-2">{message}</p>
     <div className="flex gap-2 justify-end">
       <button
         onClick={onCancel}
-        className="px-3 py-1 text-sm bg-zinc-700 rounded hover:bg-zinc-600 transition-colors"
+        className="px-3 py-1 text-sm bg-zinc-700 rounded-lg hover:bg-zinc-600 transition-colors"
       >
         Cancel
       </button>
       <button
         onClick={onConfirm}
-        className="px-3 py-1 text-sm bg-red-600 rounded hover:bg-red-500 transition-colors"
+        className="px-3 py-1 text-sm bg-red-600 rounded-lg hover:bg-red-500 transition-colors"
       >
         Delete
       </button>
     </div>
-  </div>
+  </motion.div>
 );
 
 const languages = [
-  { value: 'Chinese', label: '中文' },
-  { value: 'English', label: 'English' },
-  { value: 'Spanish', label: 'Español' },
-  { value: 'French', label: 'Français' },
-  { value: 'German', label: 'Deutsch' },
-  { value: 'Japanese', label: '日本語' },
-  { value: 'Korean', label: '한국어' },
-  { value: 'Russian', label: 'Русский' },
-  { value: 'Arabic', label: 'العربية' },
-  { value: 'Portuguese', label: 'Português' },
-  { value: 'Italian', label: 'Italiano' },
+  { value: 'Chinese', label: '中文', flag: '🇨🇳' },
+  { value: 'English', label: 'English', flag: '🇬🇧' },
+  { value: 'Spanish', label: 'Español', flag: '🇪🇸' },
+  { value: 'French', label: 'Français', flag: '🇫🇷' },
+  { value: 'German', label: 'Deutsch', flag: '🇩🇪' },
+  { value: 'Japanese', label: '日本語', flag: '🇯🇵' },
+  { value: 'Korean', label: '한국어', flag: '🇰🇷' },
+  { value: 'Russian', label: 'Русский', flag: '🇷🇺' },
+  { value: 'Arabic', label: 'العربية', flag: '🇸🇦' },
+  { value: 'Portuguese', label: 'Português', flag: '🇵🇹' },
+  { value: 'Italian', label: 'Italiano', flag: '🇮🇹' },
 ];
 
-// Base API URL - points to your deployed backend
 const API_BASE_URL = 'https://trainify-bot.onrender.com';
 
 function App() {
@@ -79,11 +91,24 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
-  const [favoriteChats, setFavoriteChats] = useState<string[]>([]);
+  const [pinnedChats, setPinnedChats] = useState<string[]>([]);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
+  const [showModelDropdown, setShowModelDropdown] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Toggle dark mode class on body
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [darkMode]);
 
   // Check screen size and adjust sidebar
   useEffect(() => {
@@ -95,13 +120,12 @@ function App() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Load chats from localStorage on initial render
+  // Load data from localStorage
   useEffect(() => {
     const savedChats = localStorage.getItem('trainify-chats');
     if (savedChats) {
       try {
         const parsedChats = JSON.parse(savedChats);
-        // Convert string dates back to Date objects
         parsedChats.forEach((chat: Chat) => {
           chat.createdAt = new Date(chat.createdAt);
           chat.messages.forEach((msg: Message) => {
@@ -114,37 +138,34 @@ function App() {
       }
     }
     
-    const savedFavorites = localStorage.getItem('trainify-favorites');
-    if (savedFavorites) {
+    const savedPinned = localStorage.getItem('trainify-pinned');
+    if (savedPinned) {
       try {
-        setFavoriteChats(JSON.parse(savedFavorites));
+        setPinnedChats(JSON.parse(savedPinned));
       } catch (e) {
-        console.error('Error parsing favorites:', e);
+        console.error('Error parsing pinned chats:', e);
       }
     }
     
-    // Focus input field when component mounts
     if (inputRef.current) {
       inputRef.current.focus();
     }
   }, []);
 
-  // Save chats to localStorage whenever they change
+  // Save data to localStorage
   useEffect(() => {
     localStorage.setItem('trainify-chats', JSON.stringify(chats));
   }, [chats]);
   
-  // Save favorites to localStorage
   useEffect(() => {
-    localStorage.setItem('trainify-favorites', JSON.stringify(favoriteChats));
-  }, [favoriteChats]);
+    localStorage.setItem('trainify-pinned', JSON.stringify(pinnedChats));
+  }, [pinnedChats]);
 
   // Scroll to bottom of messages
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Scroll when messages update
   useEffect(() => {
     scrollToBottom();
   }, [currentChat?.messages]);
@@ -152,7 +173,7 @@ function App() {
   const createNewChat = () => {
     const newChat: Chat = {
       id: Date.now().toString(),
-      title: `New Conversation`,
+      title: `New Conversation ${chats.length + 1}`,
       messages: [],
       createdAt: new Date(),
       language: 'English',
@@ -160,9 +181,8 @@ function App() {
     };
     setChats([newChat, ...chats]);
     setCurrentChat(newChat);
-    setShowMobileMenu(false); // Close mobile menu on new chat
+    setShowMobileMenu(false);
     
-    // Focus input field after creating new chat
     setTimeout(() => {
       if (inputRef.current) {
         inputRef.current.focus();
@@ -195,14 +215,14 @@ function App() {
     };
     setChats([newChat, ...chats]);
     setCurrentChat(newChat);
-    setShowMobileMenu(false); // Close mobile menu on copy
+    setShowMobileMenu(false);
   };
 
-  const toggleFavorite = (chatId: string) => {
-    if (favoriteChats.includes(chatId)) {
-      setFavoriteChats(favoriteChats.filter(id => id !== chatId));
+  const togglePin = (chatId: string) => {
+    if (pinnedChats.includes(chatId)) {
+      setPinnedChats(pinnedChats.filter(id => id !== chatId));
     } else {
-      setFavoriteChats([...favoriteChats, chatId]);
+      setPinnedChats([...pinnedChats, chatId]);
     }
   };
 
@@ -252,9 +272,7 @@ function App() {
         })
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
       const data = await response.json();
       const botMessageContent = data.response;
@@ -274,12 +292,9 @@ function App() {
       setChats(chats.map(chat => chat.id === currentChat.id ? updatedChat : chat));
       setCurrentChat(updatedChat);
       
-      // Update chat title if it's the first message
-      if (updatedChat.messages.length === 2 && updatedChat.title === 'New Conversation') {
+      if (updatedChat.messages.length === 2 && updatedChat.title.startsWith('New Conversation')) {
         let title = userMessage.content;
-        if (title.length > 30) {
-          title = title.substring(0, 30) + '...';
-        }
+        if (title.length > 30) title = title.substring(0, 30) + '...';
         renameChat(updatedChat.id, title);
       }
     } catch (error) {
@@ -300,7 +315,6 @@ function App() {
       setCurrentChat(updatedChat);
     } finally {
       setIsLoading(false);
-      // Focus input field after sending message
       if (inputRef.current) {
         inputRef.current.focus();
       }
@@ -313,9 +327,8 @@ function App() {
       setCurrentChat(null);
     }
     setDeleteConfirm(null);
-    // Also remove from favorites if present
-    if (favoriteChats.includes(chatId)) {
-      setFavoriteChats(favoriteChats.filter(id => id !== chatId));
+    if (pinnedChats.includes(chatId)) {
+      setPinnedChats(pinnedChats.filter(id => id !== chatId));
     }
   };
 
@@ -376,7 +389,6 @@ function App() {
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || !currentChat) return;
-   
     const file = e.target.files[0];
     if (!file) return;
 
@@ -397,9 +409,7 @@ function App() {
         body: formData
       });
 
-      if (!uploadResponse.ok) {
-        throw new Error('File upload failed');
-      }
+      if (!uploadResponse.ok) throw new Error('File upload failed');
 
       const uploadData = await uploadResponse.json();
 
@@ -430,10 +440,8 @@ function App() {
       setChats(chats.map(chat => chat.id === currentChat.id ? updatedChat : chat));
       setCurrentChat(updatedChat);
       
-      // Update chat title if it's the first message
-      if (updatedChat.messages.length === 2 && updatedChat.title === 'New Conversation') {
-        const title = `File: ${file.name}`;
-        renameChat(updatedChat.id, title);
+      if (updatedChat.messages.length === 2 && updatedChat.title.startsWith('New Conversation')) {
+        renameChat(updatedChat.id, `File: ${file.name}`);
       }
     } catch (error) {
       console.error('Error uploading file:', error);
@@ -464,28 +472,30 @@ function App() {
     fileInputRef.current?.click();
   };
 
-  const handleLanguageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleLanguageChange = (language: string) => {
     if (!currentChat) return;
    
     const updatedChat = {
       ...currentChat,
-      language: e.target.value
+      language
     };
 
     setChats(chats.map(chat => chat.id === currentChat.id ? updatedChat : chat));
     setCurrentChat(updatedChat);
+    setShowLanguageDropdown(false);
   };
   
-  const handleModelChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleModelChange = (modelType: 'standard' | 'advanced') => {
     if (!currentChat) return;
    
     const updatedChat = {
       ...currentChat,
-      modelType: e.target.value as 'standard' | 'advanced'
+      modelType
     };
 
     setChats(chats.map(chat => chat.id === currentChat.id ? updatedChat : chat));
     setCurrentChat(updatedChat);
+    setShowModelDropdown(false);
   };
 
   const formatTime = (date: Date) => {
@@ -512,11 +522,18 @@ function App() {
     }
   };
   
-  // Group chats by date
   const groupChatsByDate = () => {
     const grouped: { [key: string]: Chat[] } = {};
     
-    chats.forEach(chat => {
+    // Separate pinned chats
+    const pinned = chats.filter(chat => pinnedChats.includes(chat.id));
+    const unpinned = chats.filter(chat => !pinnedChats.includes(chat.id));
+    
+    if (pinned.length > 0) {
+      grouped['Pinned'] = pinned;
+    }
+    
+    unpinned.forEach(chat => {
       const dateKey = formatDate(new Date(chat.createdAt));
       if (!grouped[dateKey]) {
         grouped[dateKey] = [];
@@ -529,11 +546,84 @@ function App() {
   
   const groupedChats = groupChatsByDate();
 
+  // Voice input handler
+  const toggleVoiceInput = () => {
+    if (!('webkitSpeechRecognition' in window)) {
+      alert('Speech recognition is not supported in your browser');
+      return;
+    }
+
+    setIsListening(!isListening);
+    
+    if (!isListening) {
+      const recognition = new (window as any).webkitSpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+      
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setInputMessage(prev => prev + ' ' + transcript);
+        setIsListening(false);
+      };
+      
+      recognition.onerror = (event: any) => {
+        console.error('Speech recognition error', event.error);
+        setIsListening(false);
+      };
+      
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+      
+      recognition.start();
+    }
+  };
+
+  // Drag and drop handlers
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      if (fileInputRef.current) {
+        fileInputRef.current.files = e.dataTransfer.files;
+        handleFileUpload(e as unknown as React.ChangeEvent<HTMLInputElement>);
+      }
+    }
+  };
+
   return (
-    <div className={`flex h-screen ${darkMode ? 'bg-gradient-to-b from-zinc-900 to-zinc-950 text-zinc-100' : 'bg-gradient-to-b from-gray-50 to-gray-100 text-gray-900'}`}>
+    <div className={`flex h-screen bg-gradient-to-b ${darkMode ? 'from-gray-900 to-gray-950 text-gray-100' : 'from-gray-50 to-gray-100 text-gray-900'}`}>
       <SignedOut>
         <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-blue-900 to-purple-900">
-          <div className="p-8 rounded-xl shadow-2xl w-full max-w-md mx-4 backdrop-blur-sm bg-black bg-opacity-20 border border-white border-opacity-10">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="p-8 rounded-xl shadow-2xl w-full max-w-md mx-4 backdrop-blur-sm bg-black bg-opacity-20 border border-white border-opacity-10"
+          >
             <div className="flex items-center justify-center mb-6">
               <Cpu size={32} className="text-blue-400 mr-2" />
               <h2 className="text-3xl font-bold text-white">Trainify.ai</h2>
@@ -544,23 +634,23 @@ function App() {
               signUpUrl="/sign-up"
               afterSignInUrl="/"
             />
-          </div>
+          </motion.div>
         </div>
       </SignedOut>
 
       <SignedIn>
         {/* Mobile header */}
         <div className={`md:hidden fixed top-0 left-0 right-0 z-30 p-3 flex justify-between items-center ${
-          darkMode ? 'bg-zinc-900 border-b border-zinc-800' : 'bg-white border-b border-gray-200'
+          darkMode ? 'bg-gray-900 border-b border-gray-800' : 'bg-white border-b border-gray-200'
         }`}>
           <button
             onClick={() => setShowMobileMenu(!showMobileMenu)}
             className="p-2 rounded-full"
           >
             {showMobileMenu ? (
-              <X size={20} className={darkMode ? 'text-zinc-300' : 'text-gray-700'} />
+              <X size={20} className={darkMode ? 'text-gray-300' : 'text-gray-700'} />
             ) : (
-              <Menu size={20} className={darkMode ? 'text-zinc-300' : 'text-gray-700'} />
+              <Menu size={20} className={darkMode ? 'text-gray-300' : 'text-gray-700'} />
             )}
           </button>
           
@@ -582,16 +672,17 @@ function App() {
           />
         )}
 
-        {/* Sidebar - mobile version */}
-        <div className={`fixed md:relative z-20 h-full transition-transform duration-300 ease-in-out ${
-          showMobileMenu ? 'translate-x-0' : '-translate-x-full'
-        } md:translate-x-0 ${
-          showSidebar ? 'w-72' : 'w-0'
-        } ${
-          darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-gray-200'
-        } border-r flex flex-col overflow-hidden shadow-xl`}>
+        {/* Sidebar */}
+        <motion.div 
+          initial={{ x: '-100%' }}
+          animate={{ x: showMobileMenu ? 0 : '-100%' }}
+          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+          className={`fixed md:relative z-20 h-full ${
+            showSidebar ? 'w-72' : 'w-0'
+          } ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'} border-r flex flex-col overflow-hidden shadow-xl`}
+        >
           <div className={`p-4 border-b flex justify-between items-center ${
-            darkMode ? 'border-zinc-800' : 'border-gray-200'
+            darkMode ? 'border-gray-800' : 'border-gray-200'
           } mt-12 md:mt-0`}>
             <div className="flex items-center gap-2">
               <Cpu size={24} className="text-blue-500" />
@@ -602,53 +693,60 @@ function App() {
                 onClick={() => setShowSettings(!showSettings)} 
                 className={`p-2 rounded-full ${
                   darkMode 
-                    ? 'hover:bg-zinc-800' 
+                    ? 'hover:bg-gray-800' 
                     : 'hover:bg-gray-100'
                 }`}
               >
-                <Settings size={18} className={darkMode ? 'text-zinc-400' : 'text-gray-600'} />
+                <Settings size={18} className={darkMode ? 'text-gray-400' : 'text-gray-600'} />
               </button>
               <UserButton afterSignOutUrl="/" />
             </div>
           </div>
           
           {showSettings && (
-            <div className={`p-4 border-b ${
-              darkMode ? 'border-zinc-800 bg-zinc-800' : 'border-gray-200 bg-gray-50'
-            }`}>
-              <h2 className="font-medium mb-3">Settings</h2>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm">Dark Mode</span>
-                <button 
-                  onClick={() => setDarkMode(!darkMode)}
-                  className={`w-12 h-6 rounded-full relative transition-colors ${
-                    darkMode ? 'bg-blue-600' : 'bg-gray-300'
-                  }`}
-                >
-                  <span className={`absolute top-1 w-4 h-4 rounded-full transition-transform transform ${
-                    darkMode ? 'bg-white translate-x-6' : 'bg-white translate-x-1'
-                  }`}></span>
-                </button>
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className={`overflow-hidden border-b ${
+                darkMode ? 'border-gray-800 bg-gray-800' : 'border-gray-200 bg-gray-50'
+              }`}
+            >
+              <div className="p-4">
+                <h2 className="font-medium mb-3">Settings</h2>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm">Dark Mode</span>
+                  <button 
+                    onClick={() => setDarkMode(!darkMode)}
+                    className={`w-12 h-6 rounded-full relative transition-colors ${
+                      darkMode ? 'bg-blue-600' : 'bg-gray-300'
+                    }`}
+                  >
+                    <span className={`absolute top-1 w-4 h-4 rounded-full transition-transform transform ${
+                      darkMode ? 'bg-white translate-x-6' : 'bg-white translate-x-1'
+                    }`}></span>
+                  </button>
+                </div>
+                <div className="mt-4">
+                  <button 
+                    onClick={() => {
+                      if (confirm('Are you sure you want to clear all conversations? This cannot be undone.')) {
+                        setChats([]);
+                        setCurrentChat(null);
+                        setPinnedChats([]);
+                      }
+                    }}
+                    className={`text-sm py-1 px-2 rounded ${
+                      darkMode 
+                        ? 'bg-red-900 hover:bg-red-800 text-red-200' 
+                        : 'bg-red-100 hover:bg-red-200 text-red-800'
+                    }`}
+                  >
+                    Clear all conversations
+                  </button>
+                </div>
               </div>
-              <div className="mt-4">
-                <button 
-                  onClick={() => {
-                    if (confirm('Are you sure you want to clear all conversations? This cannot be undone.')) {
-                      setChats([]);
-                      setCurrentChat(null);
-                      setFavoriteChats([]);
-                    }
-                  }}
-                  className={`text-sm py-1 px-2 rounded ${
-                    darkMode 
-                      ? 'bg-red-900 hover:bg-red-800 text-red-200' 
-                      : 'bg-red-100 hover:bg-red-200 text-red-800'
-                  }`}
-                >
-                  Clear all conversations
-                </button>
-              </div>
-            </div>
+            </motion.div>
           )}
           
           <button
@@ -659,31 +757,37 @@ function App() {
             New Conversation
           </button>
           
-          <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent pb-20 md:pb-0">
+          <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent pb-20 md:pb-0">
             {chats.length === 0 ? (
-              <div className={`text-center p-8 ${darkMode ? 'text-zinc-500' : 'text-gray-500'}`}>
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className={`text-center p-8 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}
+              >
                 <MessageSquare size={32} className="mx-auto mb-2 opacity-50" />
                 <p className="text-sm">No conversations yet</p>
-              </div>
+              </motion.div>
             ) : (
               Object.entries(groupedChats).map(([date, dateChats]) => (
                 <div key={date}>
                   <div className={`px-4 py-2 text-xs font-medium ${
-                    darkMode ? 'text-zinc-500' : 'text-gray-500'
+                    darkMode ? 'text-gray-500' : 'text-gray-500'
                   }`}>
                     {date}
                   </div>
                   
                   {dateChats.map(chat => (
-                    <div
+                    <motion.div
                       key={chat.id}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
                       className={`group flex items-center justify-between p-3 cursor-pointer transition-all duration-150 ${
                         currentChat?.id === chat.id 
                         ? (darkMode 
-                            ? 'bg-zinc-800 border-l-4 border-blue-500' 
+                            ? 'bg-gray-800 border-l-4 border-blue-500' 
                             : 'bg-blue-50 border-l-4 border-blue-500')
                         : (darkMode
-                            ? 'hover:bg-zinc-800' 
+                            ? 'hover:bg-gray-800' 
                             : 'hover:bg-gray-100')
                       }`}
                       onClick={() => {
@@ -693,7 +797,7 @@ function App() {
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          {favoriteChats.includes(chat.id) && (
+                          {pinnedChats.includes(chat.id) && (
                             <Star size={16} className="text-yellow-500 fill-yellow-500" />
                           )}
                           <span className="text-sm font-medium truncate">
@@ -701,14 +805,14 @@ function App() {
                           </span>
                         </div>
                         <div className="flex items-center gap-1 mt-1">
-                          <span className={`text-xs ${darkMode ? 'text-zinc-500' : 'text-gray-500'}`}>
+                          <span className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
                             {chat.language}
                           </span>
-                          <span className={`text-xs ${darkMode ? 'text-zinc-600' : 'text-gray-400'}`}>•</span>
+                          <span className={`text-xs ${darkMode ? 'text-gray-600' : 'text-gray-400'}`}>•</span>
                           <span className={`text-xs ${
                             chat.modelType === 'advanced' 
                               ? 'text-purple-400' 
-                              : (darkMode ? 'text-zinc-500' : 'text-gray-500')
+                              : (darkMode ? 'text-gray-500' : 'text-gray-500')
                           }`}>
                             {chat.modelType === 'advanced' ? 'Advanced' : 'Standard'}
                           </span>
@@ -718,20 +822,20 @@ function App() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            toggleFavorite(chat.id);
+                            togglePin(chat.id);
                           }}
-                          className={`${favoriteChats.includes(chat.id) ? '' : 'opacity-0 group-hover:opacity-100'} p-1 rounded transition-all ${
+                          className={`${pinnedChats.includes(chat.id) ? '' : 'opacity-0 group-hover:opacity-100'} p-1 rounded transition-all ${
                             darkMode 
-                              ? 'hover:bg-zinc-700' 
+                              ? 'hover:bg-gray-700' 
                               : 'hover:bg-gray-200'
                           } ${
-                            favoriteChats.includes(chat.id) 
+                            pinnedChats.includes(chat.id) 
                               ? 'text-yellow-500' 
                               : 'hover:text-yellow-500'
                           }`}
-                          title={favoriteChats.includes(chat.id) ? "Remove from favorites" : "Add to favorites"}
+                          title={pinnedChats.includes(chat.id) ? "Unpin chat" : "Pin chat"}
                         >
-                          <Star size={16} className={favoriteChats.includes(chat.id) ? "fill-yellow-500" : ""} />
+                          <Star size={16} className={pinnedChats.includes(chat.id) ? "fill-yellow-500" : ""} />
                         </button>
                         <button
                           onClick={(e) => {
@@ -740,7 +844,7 @@ function App() {
                           }}
                           className={`opacity-0 group-hover:opacity-100 p-1 rounded transition-all ${
                             darkMode 
-                              ? 'hover:bg-zinc-700 hover:text-blue-400' 
+                              ? 'hover:bg-gray-700 hover:text-blue-400' 
                               : 'hover:bg-gray-200 hover:text-blue-600'
                           }`}
                           title="Duplicate chat"
@@ -754,7 +858,7 @@ function App() {
                           }}
                           className={`opacity-0 group-hover:opacity-100 p-1 rounded transition-all ${
                             darkMode 
-                              ? 'hover:bg-zinc-700 hover:text-red-400' 
+                              ? 'hover:bg-gray-700 hover:text-red-400' 
                               : 'hover:bg-gray-200 hover:text-red-600'
                           }`}
                           title="Delete chat"
@@ -769,20 +873,20 @@ function App() {
                           />
                         )}
                       </div>
-                    </div>
+                    </motion.div>
                   ))}
                 </div>
               ))
             )}
           </div>
-        </div>
+        </motion.div>
 
         <div className="flex-1 flex flex-col pt-12 md:pt-0">
           {currentChat ? (
             <>
               <div className={`p-4 border-b flex justify-between items-center shadow-md z-10 ${
                 darkMode 
-                  ? 'border-zinc-800 bg-zinc-900' 
+                  ? 'border-gray-800 bg-gray-900' 
                   : 'border-gray-200 bg-white'
               }`}>
                 <div className="flex items-center gap-2">
@@ -790,63 +894,152 @@ function App() {
                     onClick={() => setShowMobileMenu(!showMobileMenu)}
                     className="md:hidden p-1"
                   >
-                    <Menu size={20} className={darkMode ? 'text-zinc-300' : 'text-gray-700'} />
+                    <Menu size={20} className={darkMode ? 'text-gray-300' : 'text-gray-700'} />
                   </button>
                   <div>
                     <h2 className="text-lg font-semibold flex items-center gap-2">
                       <Sparkles size={18} className="text-blue-500" />
                       {currentChat.title}
                     </h2>
-                    <p className={`text-sm ${darkMode ? 'text-zinc-400' : 'text-gray-500'}`}>
+                    <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                       AI-Powered Language Assistant
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <select
-                    value={currentChat.modelType || 'standard'}
-                    onChange={handleModelChange}
-                    className={`rounded-lg px-3 py-1.5 border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      darkMode 
-                        ? 'bg-zinc-800 text-zinc-100 border-zinc-700' 
-                        : 'bg-white text-gray-800 border-gray-200'
-                    }`}
-                    aria-label="Select model"
-                  >
-                    <option value="standard">Standard</option>
-                    <option value="advanced">Advanced</option>
-                  </select>
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowModelDropdown(!showModelDropdown)}
+                      className={`flex items-center gap-2 rounded-lg px-3 py-1.5 border text-sm ${
+                        darkMode 
+                          ? 'bg-gray-800 text-gray-100 border-gray-700' 
+                          : 'bg-white text-gray-800 border-gray-200'
+                      }`}
+                    >
+                      <Cpu size={16} />
+                      {currentChat.modelType === 'advanced' ? 'Advanced' : 'Standard'}
+                      <ChevronDown size={16} />
+                    </button>
+                    {showModelDropdown && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className={`absolute right-0 mt-2 w-48 rounded-md shadow-lg z-10 ${
+                          darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+                        } border`}
+                      >
+                        <div className="py-1">
+                          <button
+                            onClick={() => handleModelChange('standard')}
+                            className={`block w-full text-left px-4 py-2 text-sm ${
+                              currentChat.modelType === 'standard'
+                                ? darkMode
+                                  ? 'bg-gray-700 text-white'
+                                  : 'bg-gray-100 text-gray-900'
+                                : darkMode
+                                ? 'text-gray-300 hover:bg-gray-700'
+                                : 'text-gray-700 hover:bg-gray-100'
+                            }`}
+                          >
+                            Standard Model
+                          </button>
+                          <button
+                            onClick={() => handleModelChange('advanced')}
+                            className={`block w-full text-left px-4 py-2 text-sm ${
+                              currentChat.modelType === 'advanced'
+                                ? darkMode
+                                  ? 'bg-gray-700 text-white'
+                                  : 'bg-gray-100 text-gray-900'
+                                : darkMode
+                                ? 'text-gray-300 hover:bg-gray-700'
+                                : 'text-gray-700 hover:bg-gray-100'
+                            }`}
+                          >
+                            Advanced Model
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </div>
                   
-                  <select
-                    value={currentChat.language || 'English'}
-                    onChange={handleLanguageChange}
-                    className={`rounded-lg px-3 py-1.5 border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      darkMode 
-                        ? 'bg-zinc-800 text-zinc-100 border-zinc-700' 
-                        : 'bg-white text-gray-800 border-gray-200'
-                    }`}
-                    aria-label="Select language"
-                  >
-                    {languages.map((lang) => (
-                      <option key={lang.value} value={lang.value}>
-                        {lang.label}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}
+                      className={`flex items-center gap-2 rounded-lg px-3 py-1.5 border text-sm ${
+                        darkMode 
+                          ? 'bg-gray-800 text-gray-100 border-gray-700' 
+                          : 'bg-white text-gray-800 border-gray-200'
+                      }`}
+                    >
+                      <Languages size={16} />
+                      {languages.find(l => l.value === currentChat.language)?.flag || '🌐'}
+                      <ChevronDown size={16} />
+                    </button>
+                    {showLanguageDropdown && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className={`absolute right-0 mt-2 w-48 rounded-md shadow-lg z-10 max-h-60 overflow-y-auto ${
+                          darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+                        } border`}
+                      >
+                        <div className="py-1">
+                          {languages.map((lang) => (
+                            <button
+                              key={lang.value}
+                              onClick={() => handleLanguageChange(lang.value)}
+                              className={`block w-full text-left px-4 py-2 text-sm flex items-center gap-2 ${
+                                currentChat.language === lang.value
+                                  ? darkMode
+                                    ? 'bg-gray-700 text-white'
+                                    : 'bg-gray-100 text-gray-900'
+                                  : darkMode
+                                  ? 'text-gray-300 hover:bg-gray-700'
+                                  : 'text-gray-700 hover:bg-gray-100'
+                              }`}
+                            >
+                              <span>{lang.flag}</span>
+                              <span>{lang.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-4 pb-24 md:pb-4">
+              <div 
+                className="flex-1 overflow-y-auto p-4 pb-24 md:pb-4 relative"
+                onDragEnter={handleDragEnter}
+                onDragLeave={handleDragLeave}
+                onDragOver={handleDragOver}
+                onDrop={handleDrop}
+              >
+                {isDragging && (
+                  <div className="absolute inset-0 bg-black bg-opacity-50 z-10 flex items-center justify-center rounded-lg border-2 border-dashed border-blue-500">
+                    <div className="text-center p-6 bg-gray-900 bg-opacity-80 rounded-lg">
+                      <Upload size={48} className="mx-auto mb-4 text-blue-400" />
+                      <p className="text-xl font-medium text-white">Drop your file here</p>
+                      <p className="text-gray-300 mt-2">Supported formats: PDF, DOC, TXT</p>
+                    </div>
+                  </div>
+                )}
+
                 {currentChat.messages.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full text-center">
-                    <div className={`p-6 rounded-full mb-4 ${
-                      darkMode ? 'bg-zinc-800' : 'bg-gray-100'
-                    }`}>
-                      <MessageSquarePlus size={32} className={darkMode ? 'text-zinc-500' : 'text-gray-400'} />
-                    </div>
+                    <motion.div 
+                      initial={{ scale: 0.8 }}
+                      animate={{ scale: 1 }}
+                      className={`p-6 rounded-full mb-4 ${
+                        darkMode ? 'bg-gray-800' : 'bg-gray-100'
+                      }`}
+                    >
+                      <MessageSquarePlus size={32} className={darkMode ? 'text-gray-500' : 'text-gray-400'} />
+                    </motion.div>
                     <h3 className="text-xl font-medium mb-2">Start a conversation</h3>
                     <p className={`max-w-md mb-6 ${
-                      darkMode ? 'text-zinc-400' : 'text-gray-500'
+                      darkMode ? 'text-gray-400' : 'text-gray-500'
                     }`}>
                       Ask questions, upload files, or practice your language skills with Trainify AI
                     </p>
@@ -860,7 +1053,7 @@ function App() {
                         }}
                         className={`px-4 py-2 rounded-lg text-sm ${
                           darkMode 
-                            ? 'bg-zinc-800 hover:bg-zinc-700' 
+                            ? 'bg-gray-800 hover:bg-gray-700' 
                             : 'bg-gray-100 hover:bg-gray-200'
                         }`}
                       >
@@ -875,7 +1068,7 @@ function App() {
                         }}
                         className={`px-4 py-2 rounded-lg text-sm ${
                           darkMode 
-                            ? 'bg-zinc-800 hover:bg-zinc-700' 
+                            ? 'bg-gray-800 hover:bg-gray-700' 
                             : 'bg-gray-100 hover:bg-gray-200'
                         }`}
                       >
@@ -886,8 +1079,11 @@ function App() {
                 ) : (
                   <div className="space-y-6">
                     {currentChat.messages.map((message) => (
-                      <div
+                      <motion.div
                         key={message.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
                         className={`group flex gap-3 ${
                           message.sender === 'user' ? 'justify-end' : 'justify-start'
                         }`}
@@ -899,13 +1095,13 @@ function App() {
                                 ? 'bg-blue-900 text-blue-100'
                                 : 'bg-blue-600 text-white'
                               : darkMode
-                              ? 'bg-zinc-800 text-zinc-100'
+                              ? 'bg-gray-800 text-gray-100'
                               : 'bg-white text-gray-800 border border-gray-200'
-                          }`}
+                          } shadow-md`}
                         >
                           {message.fileInfo && (
                             <div className={`text-xs mb-2 p-2 rounded ${
-                              darkMode ? 'bg-zinc-700' : 'bg-gray-100'
+                              darkMode ? 'bg-gray-700' : 'bg-gray-100'
                             }`}>
                               <div className="flex items-center gap-1">
                                 <span className="font-medium">File:</span>
@@ -923,7 +1119,7 @@ function App() {
                                 ? 'text-blue-300'
                                 : 'text-blue-100'
                               : darkMode
-                              ? 'text-zinc-500'
+                              ? 'text-gray-500'
                               : 'text-gray-500'
                           } bottom-1 right-2`}>
                             {formatTime(message.timestamp)}
@@ -935,7 +1131,7 @@ function App() {
                               onClick={() => copyMessageToClipboard(message.content, message.id)}
                               className={`p-1.5 rounded-full ${
                                 darkMode 
-                                  ? 'hover:bg-zinc-700 hover:text-blue-400' 
+                                  ? 'hover:bg-gray-700 hover:text-blue-400' 
                                   : 'hover:bg-gray-200 hover:text-blue-600'
                               }`}
                               title="Copy message"
@@ -947,7 +1143,7 @@ function App() {
                                 onClick={() => setDeleteConfirm({ id: message.id, type: 'message' })}
                                 className={`p-1.5 rounded-full ${
                                   darkMode 
-                                    ? 'hover:bg-zinc-700 hover:text-red-400' 
+                                    ? 'hover:bg-gray-700 hover:text-red-400' 
                                     : 'hover:bg-gray-200 hover:text-red-600'
                                 }`}
                                 title="Delete message"
@@ -957,21 +1153,28 @@ function App() {
                             )}
                           </div>
                           {copiedMessageId === message.id && (
-                            <div className={`absolute -top-8 left-1/2 transform -translate-x-1/2 px-2 py-1 rounded text-xs ${
-                              darkMode ? 'bg-zinc-700' : 'bg-gray-200'
-                            }`}>
+                            <motion.div
+                              initial={{ opacity: 0, y: -5 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -5 }}
+                              className={`absolute -top-8 left-1/2 transform -translate-x-1/2 px-2 py-1 rounded text-xs ${
+                                darkMode ? 'bg-gray-700' : 'bg-gray-200'
+                              }`}
+                            >
                               Copied!
-                            </div>
+                            </motion.div>
                           )}
-                          {deleteConfirm?.id === message.id && deleteConfirm.type === 'message' && (
-                            <DeleteConfirm
-                              message="Delete this message?"
-                              onConfirm={() => deleteMessage(message.id)}
-                              onCancel={() => setDeleteConfirm(null)}
-                            />
-                          )}
+                          <AnimatePresence>
+                            {deleteConfirm?.id === message.id && deleteConfirm.type === 'message' && (
+                              <DeleteConfirm
+                                message="Delete this message?"
+                                onConfirm={() => deleteMessage(message.id)}
+                                onCancel={() => setDeleteConfirm(null)}
+                              />
+                            )}
+                          </AnimatePresence>
                         </div>
-                      </div>
+                      </motion.div>
                     ))}
                     <div ref={messagesEndRef} />
                   </div>
@@ -979,7 +1182,7 @@ function App() {
               </div>
 
               <div className={`fixed bottom-0 left-0 right-0 md:relative p-4 border-t ${
-                darkMode ? 'border-zinc-800 bg-zinc-900' : 'border-gray-200 bg-white'
+                darkMode ? 'border-gray-800 bg-gray-900' : 'border-gray-200 bg-white'
               }`}>
                 <form onSubmit={sendMessage} className="flex gap-2">
                   <div className="flex-1 relative">
@@ -991,7 +1194,7 @@ function App() {
                       placeholder="Type your message..."
                       className={`w-full rounded-lg py-3 px-4 pr-12 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                         darkMode 
-                          ? 'bg-zinc-800 text-white placeholder-zinc-400' 
+                          ? 'bg-gray-800 text-white placeholder-gray-400' 
                           : 'bg-white text-gray-900 placeholder-gray-400 border border-gray-200'
                       }`}
                       disabled={isLoading || isUploading}
@@ -999,11 +1202,26 @@ function App() {
                     <div className="absolute right-2 top-2 flex gap-1">
                       <button
                         type="button"
+                        onClick={toggleVoiceInput}
+                        disabled={isLoading || isUploading}
+                        className={`p-2 rounded-full ${
+                          isListening 
+                            ? 'text-red-500 animate-pulse' 
+                            : darkMode 
+                              ? 'hover:bg-gray-700 text-gray-400 hover:text-gray-300' 
+                              : 'hover:bg-gray-100 text-gray-500 hover:text-gray-600'
+                        }`}
+                        title={isListening ? "Stop listening" : "Voice input"}
+                      >
+                        {isListening ? <MicOff size={20} /> : <Mic size={20} />}
+                      </button>
+                      <button
+                        type="button"
                         onClick={triggerFileInput}
                         disabled={isLoading || isUploading}
                         className={`p-2 rounded-full ${
                           darkMode 
-                            ? 'hover:bg-zinc-700 text-zinc-400 hover:text-zinc-300' 
+                            ? 'hover:bg-gray-700 text-gray-400 hover:text-gray-300' 
                             : 'hover:bg-gray-100 text-gray-500 hover:text-gray-600'
                         }`}
                         title="Upload file"
@@ -1015,7 +1233,7 @@ function App() {
                         ref={fileInputRef}
                         onChange={handleFileUpload}
                         className="hidden"
-                        accept=".txt,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+                        accept=".txt,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,image/*"
                         disabled={isLoading || isUploading}
                       />
                     </div>
@@ -1023,13 +1241,13 @@ function App() {
                   <button
                     type="submit"
                     disabled={!inputMessage.trim() || isLoading || isUploading}
-                    className={`p-3 rounded-lg flex items-center justify-center ${
+                    className={`p-3 rounded-lg flex items-center justify-center transition-all ${
                       inputMessage.trim() && !isLoading && !isUploading
-                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md'
                         : darkMode
-                        ? 'bg-zinc-800 text-zinc-500'
+                        ? 'bg-gray-800 text-gray-500'
                         : 'bg-gray-200 text-gray-500'
-                    } transition-colors`}
+                    }`}
                   >
                     {isLoading || isUploading ? (
                       <RefreshCw size={20} className="animate-spin" />
@@ -1039,22 +1257,26 @@ function App() {
                   </button>
                 </form>
                 <div className={`text-xs mt-2 text-center ${
-                  darkMode ? 'text-zinc-500' : 'text-gray-500'
+                  darkMode ? 'text-gray-500' : 'text-gray-500'
                 }`}>
                   {isUploading ? 'Uploading file...' : 'Trainify may produce inaccurate information'}
                 </div>
               </div>
             </>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center pt-12 md:pt-0">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex-1 flex flex-col items-center justify-center pt-12 md:pt-0"
+            >
               <div className={`p-6 rounded-full mb-6 ${
-                darkMode ? 'bg-zinc-800' : 'bg-gray-100'
+                darkMode ? 'bg-gray-800' : 'bg-gray-100'
               }`}>
-                <MessageSquare size={48} className={darkMode ? 'text-zinc-500' : 'text-gray-400'} />
+                <MessageSquare size={48} className={darkMode ? 'text-gray-500' : 'text-gray-400'} />
               </div>
               <h2 className="text-2xl font-medium mb-2">No conversation selected</h2>
               <p className={`max-w-md text-center mb-6 px-4 ${
-                darkMode ? 'text-zinc-400' : 'text-gray-500'
+                darkMode ? 'text-gray-400' : 'text-gray-500'
               }`}>
                 Select an existing conversation from the sidebar or create a new one to get started
               </p>
@@ -1066,34 +1288,40 @@ function App() {
                 New Conversation
               </button>
               <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4 max-w-md px-4">
-                <div className={`p-4 rounded-lg ${
-                  darkMode ? 'bg-zinc-800' : 'bg-gray-100'
-                }`}>
+                <motion.div 
+                  whileHover={{ y: -2 }}
+                  className={`p-4 rounded-lg transition-all ${
+                    darkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-gray-100 hover:bg-gray-200'
+                  }`}
+                >
                   <div className="flex items-center gap-2 mb-2">
                     <AlignLeft size={18} className={darkMode ? 'text-blue-400' : 'text-blue-600'} />
                     <h3 className="font-medium">Language Practice</h3>
                   </div>
                   <p className={`text-sm ${
-                    darkMode ? 'text-zinc-400' : 'text-gray-600'
+                    darkMode ? 'text-gray-400' : 'text-gray-600'
                   }`}>
                     Improve your conversation skills with AI-powered practice
                   </p>
-                </div>
-                <div className={`p-4 rounded-lg ${
-                  darkMode ? 'bg-zinc-800' : 'bg-gray-100'
-                }`}>
+                </motion.div>
+                <motion.div 
+                  whileHover={{ y: -2 }}
+                  className={`p-4 rounded-lg transition-all ${
+                    darkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-gray-100 hover:bg-gray-200'
+                  }`}
+                >
                   <div className="flex items-center gap-2 mb-2">
                     <BookOpen size={18} className={darkMode ? 'text-purple-400' : 'text-purple-600'} />
                     <h3 className="font-medium">Document Translation</h3>
                   </div>
                   <p className={`text-sm ${
-                    darkMode ? 'text-zinc-400' : 'text-gray-600'
+                    darkMode ? 'text-gray-400' : 'text-gray-600'
                   }`}>
                     Upload files and get translations with explanations
                   </p>
-                </div>
+                </motion.div>
               </div>
-            </div>
+            </motion.div>
           )}
         </div>
       </SignedIn>
