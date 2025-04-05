@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageSquarePlus, Send, MessageSquare, Trash2, Download, ChevronLeft, ChevronRight, Copy, Upload, Plus, AlignLeft, Sparkles, Settings, RefreshCw, BookOpen, Star, Cpu, Menu, X } from 'lucide-react';
+import { MessageSquarePlus, Send, MessageSquare, Trash2, Download, ChevronLeft, ChevronRight, Copy, Upload, Plus, AlignLeft, Sparkles, Settings, RefreshCw, BookOpen, Star, Cpu, Menu, X, Languages, Zap, FileText } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { SignedIn, SignedOut, SignIn, UserButton, useAuth } from '@clerk/clerk-react';
 
@@ -31,18 +31,18 @@ interface DeleteConfirmProps {
 }
 
 const DeleteConfirm: React.FC<DeleteConfirmProps> = ({ onConfirm, onCancel, message }) => (
-  <div className="absolute right-0 top-0 bg-zinc-800 rounded-lg shadow-xl p-3 z-10 border border-zinc-700 animate-fade-in">
+  <div className="absolute right-0 top-0 bg-zinc-800 rounded-lg shadow-xl p-3 z-10 border border-zinc-700 animate-fade-in backdrop-blur-sm bg-opacity-90">
     <p className="text-sm mb-2">{message}</p>
     <div className="flex gap-2 justify-end">
       <button
         onClick={onCancel}
-        className="px-3 py-1 text-sm bg-zinc-700 rounded hover:bg-zinc-600 transition-colors"
+        className="px-3 py-1 text-sm bg-zinc-700 rounded-lg hover:bg-zinc-600 transition-colors"
       >
         Cancel
       </button>
       <button
         onClick={onConfirm}
-        className="px-3 py-1 text-sm bg-red-600 rounded hover:bg-red-500 transition-colors"
+        className="px-3 py-1 text-sm bg-red-600 rounded-lg hover:bg-red-500 transition-colors"
       >
         Delete
       </button>
@@ -64,7 +64,6 @@ const languages = [
   { value: 'Italian', label: 'Italiano' },
 ];
 
-// Base API URL - points to your deployed backend
 const API_BASE_URL = 'https://trainify-bot.onrender.com';
 
 function App() {
@@ -85,7 +84,6 @@ function App() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Check screen size and adjust sidebar
   useEffect(() => {
     const handleResize = () => {
       setShowSidebar(window.innerWidth > 768);
@@ -95,13 +93,11 @@ function App() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Load chats from localStorage on initial render
   useEffect(() => {
     const savedChats = localStorage.getItem('trainify-chats');
     if (savedChats) {
       try {
         const parsedChats = JSON.parse(savedChats);
-        // Convert string dates back to Date objects
         parsedChats.forEach((chat: Chat) => {
           chat.createdAt = new Date(chat.createdAt);
           chat.messages.forEach((msg: Message) => {
@@ -123,28 +119,23 @@ function App() {
       }
     }
     
-    // Focus input field when component mounts
     if (inputRef.current) {
       inputRef.current.focus();
     }
   }, []);
 
-  // Save chats to localStorage whenever they change
   useEffect(() => {
     localStorage.setItem('trainify-chats', JSON.stringify(chats));
   }, [chats]);
   
-  // Save favorites to localStorage
   useEffect(() => {
     localStorage.setItem('trainify-favorites', JSON.stringify(favoriteChats));
   }, [favoriteChats]);
 
-  // Scroll to bottom of messages
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Scroll when messages update
   useEffect(() => {
     scrollToBottom();
   }, [currentChat?.messages]);
@@ -160,9 +151,8 @@ function App() {
     };
     setChats([newChat, ...chats]);
     setCurrentChat(newChat);
-    setShowMobileMenu(false); // Close mobile menu on new chat
+    setShowMobileMenu(false);
     
-    // Focus input field after creating new chat
     setTimeout(() => {
       if (inputRef.current) {
         inputRef.current.focus();
@@ -195,7 +185,7 @@ function App() {
     };
     setChats([newChat, ...chats]);
     setCurrentChat(newChat);
-    setShowMobileMenu(false); // Close mobile menu on copy
+    setShowMobileMenu(false);
   };
 
   const toggleFavorite = (chatId: string) => {
@@ -274,7 +264,6 @@ function App() {
       setChats(chats.map(chat => chat.id === currentChat.id ? updatedChat : chat));
       setCurrentChat(updatedChat);
       
-      // Update chat title if it's the first message
       if (updatedChat.messages.length === 2 && updatedChat.title === 'New Conversation') {
         let title = userMessage.content;
         if (title.length > 30) {
@@ -300,7 +289,6 @@ function App() {
       setCurrentChat(updatedChat);
     } finally {
       setIsLoading(false);
-      // Focus input field after sending message
       if (inputRef.current) {
         inputRef.current.focus();
       }
@@ -313,7 +301,6 @@ function App() {
       setCurrentChat(null);
     }
     setDeleteConfirm(null);
-    // Also remove from favorites if present
     if (favoriteChats.includes(chatId)) {
       setFavoriteChats(favoriteChats.filter(id => id !== chatId));
     }
@@ -430,7 +417,6 @@ function App() {
       setChats(chats.map(chat => chat.id === currentChat.id ? updatedChat : chat));
       setCurrentChat(updatedChat);
       
-      // Update chat title if it's the first message
       if (updatedChat.messages.length === 2 && updatedChat.title === 'New Conversation') {
         const title = `File: ${file.name}`;
         renameChat(updatedChat.id, title);
@@ -512,7 +498,6 @@ function App() {
     }
   };
   
-  // Group chats by date
   const groupChatsByDate = () => {
     const grouped: { [key: string]: Chat[] } = {};
     
@@ -530,19 +515,39 @@ function App() {
   const groupedChats = groupChatsByDate();
 
   return (
-    <div className={`flex h-screen ${darkMode ? 'bg-gradient-to-b from-zinc-900 to-zinc-950 text-zinc-100' : 'bg-gradient-to-b from-gray-50 to-gray-100 text-gray-900'}`}>
+    <div className={`flex h-screen ${darkMode ? 'bg-gradient-to-br from-gray-900 to-gray-950 text-gray-100' : 'bg-gradient-to-b from-gray-50 to-gray-100 text-gray-900'}`}>
       <SignedOut>
-        <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-blue-900 to-purple-900">
-          <div className="p-8 rounded-xl shadow-2xl w-full max-w-md mx-4 backdrop-blur-sm bg-black bg-opacity-20 border border-white border-opacity-10">
-            <div className="flex items-center justify-center mb-6">
-              <Cpu size={32} className="text-blue-400 mr-2" />
-              <h2 className="text-3xl font-bold text-white">Trainify.ai</h2>
+        <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-blue-900 to-indigo-900">
+          <div className="p-8 rounded-2xl shadow-2xl w-full max-w-md mx-4 backdrop-blur-sm bg-black bg-opacity-30 border border-white border-opacity-10">
+            <div className="flex flex-col items-center justify-center mb-6">
+              <div className="flex items-center justify-center mb-4">
+                <Cpu size={40} className="text-blue-400 mr-3" />
+                <h2 className="text-4xl font-bold text-white bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                  Trainify.ai
+                </h2>
+              </div>
+              <p className="text-center text-blue-100 text-lg mb-2">Your AI-powered language training assistant</p>
+              <p className="text-center text-blue-200 text-sm max-w-md">
+                Practice languages, get translations, and improve your skills with our intelligent AI assistant
+              </p>
             </div>
-            <p className="text-center mb-6 text-blue-100">Your AI-powered language training assistant</p>
             <SignIn
               routing="hash"
               signUpUrl="/sign-up"
               afterSignInUrl="/"
+              appearance={{
+                elements: {
+                  card: 'bg-transparent shadow-none border-0',
+                  headerTitle: 'text-white',
+                  headerSubtitle: 'text-blue-200',
+                  socialButtonsBlockButton: 'border-white/20 hover:bg-white/10',
+                  dividerLine: 'bg-white/20',
+                  formFieldLabel: 'text-white',
+                  formFieldInput: 'bg-white/10 border-white/20 text-white focus:border-blue-400 focus:shadow-blue-400/10',
+                  footerActionText: 'text-white',
+                  footerActionLink: 'text-blue-300 hover:text-blue-200',
+                }
+              }}
             />
           </div>
         </div>
@@ -551,33 +556,43 @@ function App() {
       <SignedIn>
         {/* Mobile header */}
         <div className={`md:hidden fixed top-0 left-0 right-0 z-30 p-3 flex justify-between items-center ${
-          darkMode ? 'bg-zinc-900 border-b border-zinc-800' : 'bg-white border-b border-gray-200'
+          darkMode ? 'bg-gray-900/90 backdrop-blur-sm border-b border-gray-800' : 'bg-white/90 backdrop-blur-sm border-b border-gray-200'
         }`}>
           <button
             onClick={() => setShowMobileMenu(!showMobileMenu)}
-            className="p-2 rounded-full"
+            className="p-2 rounded-full hover:bg-gray-800/50 transition-colors"
           >
             {showMobileMenu ? (
-              <X size={20} className={darkMode ? 'text-zinc-300' : 'text-gray-700'} />
+              <X size={20} className={darkMode ? 'text-gray-300' : 'text-gray-700'} />
             ) : (
-              <Menu size={20} className={darkMode ? 'text-zinc-300' : 'text-gray-700'} />
+              <Menu size={20} className={darkMode ? 'text-gray-300' : 'text-gray-700'} />
             )}
           </button>
           
           <div className="flex items-center gap-2">
             <Cpu size={20} className="text-blue-500" />
-            <h1 className="font-bold">Trainify.ai</h1>
+            <h1 className="font-bold text-lg bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">
+              Trainify.ai
+            </h1>
           </div>
           
           <div className="w-8">
-            <UserButton afterSignOutUrl="/" />
+            <UserButton 
+              afterSignOutUrl="/" 
+              appearance={{
+                elements: {
+                  userButtonAvatarBox: 'w-8 h-8',
+                  userButtonPopoverCard: darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200',
+                }
+              }}
+            />
           </div>
         </div>
 
         {/* Mobile menu overlay */}
         {showMobileMenu && (
           <div 
-            className="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden"
+            className="fixed inset-0 bg-black/50 z-20 md:hidden backdrop-blur-sm"
             onClick={() => setShowMobileMenu(false)}
           />
         )}
@@ -586,39 +601,51 @@ function App() {
         <div className={`fixed md:relative z-20 h-full transition-transform duration-300 ease-in-out ${
           showMobileMenu ? 'translate-x-0' : '-translate-x-full'
         } md:translate-x-0 ${
-          showSidebar ? 'w-72' : 'w-0'
+          showSidebar ? 'w-80' : 'w-0'
         } ${
-          darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-gray-200'
+          darkMode ? 'bg-gray-900/95 backdrop-blur-sm border-gray-800' : 'bg-white/95 backdrop-blur-sm border-gray-200'
         } border-r flex flex-col overflow-hidden shadow-xl`}>
           <div className={`p-4 border-b flex justify-between items-center ${
-            darkMode ? 'border-zinc-800' : 'border-gray-200'
+            darkMode ? 'border-gray-800' : 'border-gray-200'
           } mt-12 md:mt-0`}>
             <div className="flex items-center gap-2">
               <Cpu size={24} className="text-blue-500" />
-              <h1 className="font-bold text-xl">Trainify.ai</h1>
+              <h1 className="font-bold text-xl bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">
+                Trainify.ai
+              </h1>
             </div>
             <div className="md:flex items-center gap-2 hidden">
               <button 
                 onClick={() => setShowSettings(!showSettings)} 
-                className={`p-2 rounded-full ${
+                className={`p-2 rounded-full transition-colors ${
                   darkMode 
-                    ? 'hover:bg-zinc-800' 
-                    : 'hover:bg-gray-100'
+                    ? 'hover:bg-gray-800 text-gray-400 hover:text-gray-300' 
+                    : 'hover:bg-gray-100 text-gray-600 hover:text-gray-700'
                 }`}
               >
-                <Settings size={18} className={darkMode ? 'text-zinc-400' : 'text-gray-600'} />
+                <Settings size={18} />
               </button>
-              <UserButton afterSignOutUrl="/" />
+              <UserButton 
+                afterSignOutUrl="/" 
+                appearance={{
+                  elements: {
+                    userButtonAvatarBox: 'w-8 h-8',
+                    userButtonPopoverCard: darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200',
+                  }
+                }}
+              />
             </div>
           </div>
           
           {showSettings && (
             <div className={`p-4 border-b ${
-              darkMode ? 'border-zinc-800 bg-zinc-800' : 'border-gray-200 bg-gray-50'
+              darkMode ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-gray-50/50'
             }`}>
-              <h2 className="font-medium mb-3">Settings</h2>
+              <h2 className="font-medium mb-3 text-gray-500">Settings</h2>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm">Dark Mode</span>
+                <span className="text-sm flex items-center gap-2">
+                  <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Dark Mode</span>
+                </span>
                 <button 
                   onClick={() => setDarkMode(!darkMode)}
                   className={`w-12 h-6 rounded-full relative transition-colors ${
@@ -626,7 +653,7 @@ function App() {
                   }`}
                 >
                   <span className={`absolute top-1 w-4 h-4 rounded-full transition-transform transform ${
-                    darkMode ? 'bg-white translate-x-6' : 'bg-white translate-x-1'
+                    darkMode ? 'bg-white translate-x-7' : 'bg-white translate-x-1'
                   }`}></span>
                 </button>
               </div>
@@ -639,12 +666,13 @@ function App() {
                       setFavoriteChats([]);
                     }
                   }}
-                  className={`text-sm py-1 px-2 rounded ${
+                  className={`text-sm py-1.5 px-3 rounded-lg flex items-center gap-2 transition-colors ${
                     darkMode 
-                      ? 'bg-red-900 hover:bg-red-800 text-red-200' 
+                      ? 'bg-red-900/50 hover:bg-red-900 text-red-200' 
                       : 'bg-red-100 hover:bg-red-200 text-red-800'
                   }`}
                 >
+                  <Trash2 size={16} />
                   Clear all conversations
                 </button>
               </div>
@@ -653,23 +681,29 @@ function App() {
           
           <button
             onClick={createNewChat}
-            className="m-4 flex items-center justify-center gap-2 bg-blue-600 text-white py-2.5 px-4 rounded-lg hover:bg-blue-700 transition-colors shadow-md font-medium"
+            className="mx-4 my-3 flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 px-4 rounded-xl hover:from-blue-500 hover:to-indigo-500 transition-all shadow-lg font-medium"
           >
             <Plus size={20} />
             New Conversation
           </button>
           
-          <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent pb-20 md:pb-0">
+          <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent pb-20 md:pb-0">
             {chats.length === 0 ? (
-              <div className={`text-center p-8 ${darkMode ? 'text-zinc-500' : 'text-gray-500'}`}>
+              <div className={`text-center p-8 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
                 <MessageSquare size={32} className="mx-auto mb-2 opacity-50" />
                 <p className="text-sm">No conversations yet</p>
+                <button
+                  onClick={createNewChat}
+                  className="mt-4 text-sm bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-500 transition-colors"
+                >
+                  Create your first chat
+                </button>
               </div>
             ) : (
               Object.entries(groupedChats).map(([date, dateChats]) => (
                 <div key={date}>
                   <div className={`px-4 py-2 text-xs font-medium ${
-                    darkMode ? 'text-zinc-500' : 'text-gray-500'
+                    darkMode ? 'text-gray-500' : 'text-gray-400'
                   }`}>
                     {date}
                   </div>
@@ -677,14 +711,14 @@ function App() {
                   {dateChats.map(chat => (
                     <div
                       key={chat.id}
-                      className={`group flex items-center justify-between p-3 cursor-pointer transition-all duration-150 ${
+                      className={`group flex items-center justify-between p-3 mx-2 rounded-lg cursor-pointer transition-all duration-150 ${
                         currentChat?.id === chat.id 
                         ? (darkMode 
-                            ? 'bg-zinc-800 border-l-4 border-blue-500' 
+                            ? 'bg-gray-800 border-l-4 border-blue-500' 
                             : 'bg-blue-50 border-l-4 border-blue-500')
                         : (darkMode
-                            ? 'hover:bg-zinc-800' 
-                            : 'hover:bg-gray-100')
+                            ? 'hover:bg-gray-800/50' 
+                            : 'hover:bg-gray-100/50')
                       }`}
                       onClick={() => {
                         setCurrentChat(chat);
@@ -701,15 +735,19 @@ function App() {
                           </span>
                         </div>
                         <div className="flex items-center gap-1 mt-1">
-                          <span className={`text-xs ${darkMode ? 'text-zinc-500' : 'text-gray-500'}`}>
+                          <span className={`text-xs flex items-center gap-1 ${
+                            darkMode ? 'text-gray-500' : 'text-gray-500'
+                          }`}>
+                            <Languages size={12} />
                             {chat.language}
                           </span>
-                          <span className={`text-xs ${darkMode ? 'text-zinc-600' : 'text-gray-400'}`}>•</span>
-                          <span className={`text-xs ${
+                          <span className={`text-xs ${darkMode ? 'text-gray-700' : 'text-gray-300'}`}>•</span>
+                          <span className={`text-xs flex items-center gap-1 ${
                             chat.modelType === 'advanced' 
                               ? 'text-purple-400' 
-                              : (darkMode ? 'text-zinc-500' : 'text-gray-500')
+                              : (darkMode ? 'text-gray-500' : 'text-gray-500')
                           }`}>
+                            <Zap size={12} className={chat.modelType === 'advanced' ? 'fill-purple-400/20' : ''} />
                             {chat.modelType === 'advanced' ? 'Advanced' : 'Standard'}
                           </span>
                         </div>
@@ -720,14 +758,14 @@ function App() {
                             e.stopPropagation();
                             toggleFavorite(chat.id);
                           }}
-                          className={`${favoriteChats.includes(chat.id) ? '' : 'opacity-0 group-hover:opacity-100'} p-1 rounded transition-all ${
+                          className={`${favoriteChats.includes(chat.id) ? '' : 'opacity-0 group-hover:opacity-100'} p-1.5 rounded-lg transition-all ${
                             darkMode 
-                              ? 'hover:bg-zinc-700' 
-                              : 'hover:bg-gray-200'
+                              ? 'hover:bg-gray-700/50' 
+                              : 'hover:bg-gray-200/50'
                           } ${
                             favoriteChats.includes(chat.id) 
                               ? 'text-yellow-500' 
-                              : 'hover:text-yellow-500'
+                              : 'hover:text-yellow-500 text-gray-500'
                           }`}
                           title={favoriteChats.includes(chat.id) ? "Remove from favorites" : "Add to favorites"}
                         >
@@ -738,10 +776,10 @@ function App() {
                             e.stopPropagation();
                             copyChat(chat);
                           }}
-                          className={`opacity-0 group-hover:opacity-100 p-1 rounded transition-all ${
+                          className={`opacity-0 group-hover:opacity-100 p-1.5 rounded-lg transition-all ${
                             darkMode 
-                              ? 'hover:bg-zinc-700 hover:text-blue-400' 
-                              : 'hover:bg-gray-200 hover:text-blue-600'
+                              ? 'hover:bg-gray-700/50 text-gray-400 hover:text-blue-400' 
+                              : 'hover:bg-gray-200/50 text-gray-500 hover:text-blue-600'
                           }`}
                           title="Duplicate chat"
                         >
@@ -752,10 +790,10 @@ function App() {
                             e.stopPropagation();
                             setDeleteConfirm({ id: chat.id, type: 'chat' });
                           }}
-                          className={`opacity-0 group-hover:opacity-100 p-1 rounded transition-all ${
+                          className={`opacity-0 group-hover:opacity-100 p-1.5 rounded-lg transition-all ${
                             darkMode 
-                              ? 'hover:bg-zinc-700 hover:text-red-400' 
-                              : 'hover:bg-gray-200 hover:text-red-600'
+                              ? 'hover:bg-gray-700/50 text-gray-400 hover:text-red-400' 
+                              : 'hover:bg-gray-200/50 text-gray-500 hover:text-red-600'
                           }`}
                           title="Delete chat"
                         >
@@ -777,28 +815,36 @@ function App() {
           </div>
         </div>
 
-        <div className="flex-1 flex flex-col pt-12 md:pt-0">
+        <div className="flex-1 flex flex-col pt-12 md:pt-0 overflow-hidden">
           {currentChat ? (
             <>
-              <div className={`p-4 border-b flex justify-between items-center shadow-md z-10 ${
+              <div className={`p-4 border-b flex justify-between items-center shadow-sm z-10 ${
                 darkMode 
-                  ? 'border-zinc-800 bg-zinc-900' 
-                  : 'border-gray-200 bg-white'
+                  ? 'border-gray-800 bg-gray-900/80 backdrop-blur-sm' 
+                  : 'border-gray-200 bg-white/80 backdrop-blur-sm'
               }`}>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                   <button 
                     onClick={() => setShowMobileMenu(!showMobileMenu)}
-                    className="md:hidden p-1"
+                    className="md:hidden p-1.5 rounded-lg hover:bg-gray-800/50 transition-colors"
                   >
-                    <Menu size={20} className={darkMode ? 'text-zinc-300' : 'text-gray-700'} />
+                    <Menu size={20} className={darkMode ? 'text-gray-300' : 'text-gray-700'} />
                   </button>
                   <div>
                     <h2 className="text-lg font-semibold flex items-center gap-2">
                       <Sparkles size={18} className="text-blue-500" />
-                      {currentChat.title}
+                      <span className="truncate max-w-[180px] md:max-w-xs">{currentChat.title}</span>
                     </h2>
-                    <p className={`text-sm ${darkMode ? 'text-zinc-400' : 'text-gray-500'}`}>
-                      AI-Powered Language Assistant
+                    <p className={`text-xs flex items-center gap-2 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                      <span className="flex items-center gap-1">
+                        <Languages size={12} />
+                        {currentChat.language}
+                      </span>
+                      <span>•</span>
+                      <span className="flex items-center gap-1">
+                        <Zap size={12} className={currentChat.modelType === 'advanced' ? 'fill-purple-400/20' : ''} />
+                        {currentChat.modelType === 'advanced' ? 'Advanced Model' : 'Standard Model'}
+                      </span>
                     </p>
                   </div>
                 </div>
@@ -808,7 +854,7 @@ function App() {
                     onChange={handleModelChange}
                     className={`rounded-lg px-3 py-1.5 border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                       darkMode 
-                        ? 'bg-zinc-800 text-zinc-100 border-zinc-700' 
+                        ? 'bg-gray-800 text-gray-100 border-gray-700' 
                         : 'bg-white text-gray-800 border-gray-200'
                     }`}
                     aria-label="Select model"
@@ -822,7 +868,7 @@ function App() {
                     onChange={handleLanguageChange}
                     className={`rounded-lg px-3 py-1.5 border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                       darkMode 
-                        ? 'bg-zinc-800 text-zinc-100 border-zinc-700' 
+                        ? 'bg-gray-800 text-gray-100 border-gray-700' 
                         : 'bg-white text-gray-800 border-gray-200'
                     }`}
                     aria-label="Select language"
@@ -840,17 +886,17 @@ function App() {
                 {currentChat.messages.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full text-center">
                     <div className={`p-6 rounded-full mb-4 ${
-                      darkMode ? 'bg-zinc-800' : 'bg-gray-100'
+                      darkMode ? 'bg-gray-800' : 'bg-gray-100'
                     }`}>
-                      <MessageSquarePlus size={32} className={darkMode ? 'text-zinc-500' : 'text-gray-400'} />
+                      <MessageSquarePlus size={32} className={darkMode ? 'text-gray-500' : 'text-gray-400'} />
                     </div>
                     <h3 className="text-xl font-medium mb-2">Start a conversation</h3>
                     <p className={`max-w-md mb-6 ${
-                      darkMode ? 'text-zinc-400' : 'text-gray-500'
+                      darkMode ? 'text-gray-400' : 'text-gray-500'
                     }`}>
                       Ask questions, upload files, or practice your language skills with Trainify AI
                     </p>
-                    <div className="flex gap-3 flex-wrap justify-center">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-md">
                       <button
                         onClick={() => {
                           setInputMessage('Can you help me practice my conversation skills?');
@@ -858,12 +904,13 @@ function App() {
                             inputRef.current.focus();
                           }
                         }}
-                        className={`px-4 py-2 rounded-lg text-sm ${
+                        className={`px-4 py-2.5 rounded-lg text-sm flex items-center gap-2 ${
                           darkMode 
-                            ? 'bg-zinc-800 hover:bg-zinc-700' 
+                            ? 'bg-gray-800 hover:bg-gray-700' 
                             : 'bg-gray-100 hover:bg-gray-200'
-                        }`}
+                        } transition-colors`}
                       >
+                        <MessageSquare size={16} />
                         Practice conversation
                       </button>
                       <button
@@ -873,18 +920,48 @@ function App() {
                             inputRef.current.focus();
                           }
                         }}
-                        className={`px-4 py-2 rounded-lg text-sm ${
+                        className={`px-4 py-2.5 rounded-lg text-sm flex items-center gap-2 ${
                           darkMode 
-                            ? 'bg-zinc-800 hover:bg-zinc-700' 
+                            ? 'bg-gray-800 hover:bg-gray-700' 
                             : 'bg-gray-100 hover:bg-gray-200'
-                        }`}
+                        } transition-colors`}
                       >
+                        <AlignLeft size={16} />
                         Ask about grammar
+                      </button>
+                      <button
+                        onClick={() => {
+                          triggerFileInput();
+                        }}
+                        className={`px-4 py-2.5 rounded-lg text-sm flex items-center gap-2 ${
+                          darkMode 
+                            ? 'bg-gray-800 hover:bg-gray-700' 
+                            : 'bg-gray-100 hover:bg-gray-200'
+                        } transition-colors`}
+                      >
+                        <FileText size={16} />
+                        Upload document
+                      </button>
+                      <button
+                        onClick={() => {
+                          setInputMessage('What are some common phrases in this language?');
+                          if (inputRef.current) {
+                            inputRef.current.focus();
+                          }
+                        }}
+                        className={`px-4 py-2.5 rounded-lg text-sm flex items-center gap-2 ${
+                          darkMode 
+                            ? 'bg-gray-800 hover:bg-gray-700' 
+                            : 'bg-gray-100 hover:bg-gray-200'
+                        } transition-colors`}
+                      >
+                        <Languages size={16} />
+                        Common phrases
                       </button>
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-6">
+                  <div className="space-y-6 max-w-4xl mx-auto">
                     {currentChat.messages.map((message) => (
                       <div
                         key={message.id}
@@ -893,19 +970,19 @@ function App() {
                         }`}
                       >
                         <div
-                          className={`max-w-[90%] md:max-w-3xl rounded-lg p-4 relative ${
+                          className={`max-w-[90%] md:max-w-3xl rounded-xl p-4 relative transition-all ${
                             message.sender === 'user'
                               ? darkMode
-                                ? 'bg-blue-900 text-blue-100'
-                                : 'bg-blue-600 text-white'
+                                ? 'bg-gradient-to-br from-blue-700 to-blue-800 text-blue-50'
+                                : 'bg-gradient-to-br from-blue-600 to-blue-700 text-white'
                               : darkMode
-                              ? 'bg-zinc-800 text-zinc-100'
+                              ? 'bg-gray-800 text-gray-100'
                               : 'bg-white text-gray-800 border border-gray-200'
                           }`}
                         >
                           {message.fileInfo && (
-                            <div className={`text-xs mb-2 p-2 rounded ${
-                              darkMode ? 'bg-zinc-700' : 'bg-gray-100'
+                            <div className={`text-xs mb-2 p-2 rounded-lg ${
+                              darkMode ? 'bg-gray-700/50' : 'bg-gray-100'
                             }`}>
                               <div className="flex items-center gap-1">
                                 <span className="font-medium">File:</span>
@@ -923,7 +1000,7 @@ function App() {
                                 ? 'text-blue-300'
                                 : 'text-blue-100'
                               : darkMode
-                              ? 'text-zinc-500'
+                              ? 'text-gray-500'
                               : 'text-gray-500'
                           } bottom-1 right-2`}>
                             {formatTime(message.timestamp)}
@@ -933,11 +1010,11 @@ function App() {
                           } top-0 opacity-0 group-hover:opacity-100 transition-opacity`}>
                             <button
                               onClick={() => copyMessageToClipboard(message.content, message.id)}
-                              className={`p-1.5 rounded-full ${
+                              className={`p-1.5 rounded-lg ${
                                 darkMode 
-                                  ? 'hover:bg-zinc-700 hover:text-blue-400' 
-                                  : 'hover:bg-gray-200 hover:text-blue-600'
-                              }`}
+                                  ? 'hover:bg-gray-700/50 text-gray-400 hover:text-blue-400' 
+                                  : 'hover:bg-gray-200/50 text-gray-500 hover:text-blue-600'
+                              } transition-colors`}
                               title="Copy message"
                             >
                               <Copy size={16} />
@@ -945,11 +1022,11 @@ function App() {
                             {message.sender === 'user' && (
                               <button
                                 onClick={() => setDeleteConfirm({ id: message.id, type: 'message' })}
-                                className={`p-1.5 rounded-full ${
+                                className={`p-1.5 rounded-lg ${
                                   darkMode 
-                                    ? 'hover:bg-zinc-700 hover:text-red-400' 
-                                    : 'hover:bg-gray-200 hover:text-red-600'
-                                }`}
+                                    ? 'hover:bg-gray-700/50 text-gray-400 hover:text-red-400' 
+                                    : 'hover:bg-gray-200/50 text-gray-500 hover:text-red-600'
+                                } transition-colors`}
                                 title="Delete message"
                               >
                                 <Trash2 size={16} />
@@ -957,9 +1034,9 @@ function App() {
                             )}
                           </div>
                           {copiedMessageId === message.id && (
-                            <div className={`absolute -top-8 left-1/2 transform -translate-x-1/2 px-2 py-1 rounded text-xs ${
-                              darkMode ? 'bg-zinc-700' : 'bg-gray-200'
-                            }`}>
+                            <div className={`absolute -top-8 left-1/2 transform -translate-x-1/2 px-2 py-1 rounded-lg text-xs ${
+                              darkMode ? 'bg-gray-800' : 'bg-gray-200'
+                            } shadow-md`}>
                               Copied!
                             </div>
                           )}
@@ -979,7 +1056,7 @@ function App() {
               </div>
 
               <div className={`fixed bottom-0 left-0 right-0 md:relative p-4 border-t ${
-                darkMode ? 'border-zinc-800 bg-zinc-900' : 'border-gray-200 bg-white'
+                darkMode ? 'border-gray-800 bg-gray-900/80 backdrop-blur-sm' : 'border-gray-200 bg-white/80 backdrop-blur-sm'
               }`}>
                 <form onSubmit={sendMessage} className="flex gap-2">
                   <div className="flex-1 relative">
@@ -989,11 +1066,11 @@ function App() {
                       value={inputMessage}
                       onChange={(e) => setInputMessage(e.target.value)}
                       placeholder="Type your message..."
-                      className={`w-full rounded-lg py-3 px-4 pr-12 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      className={`w-full rounded-xl py-3 px-4 pr-12 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                         darkMode 
-                          ? 'bg-zinc-800 text-white placeholder-zinc-400' 
-                          : 'bg-white text-gray-900 placeholder-gray-400 border border-gray-200'
-                      }`}
+                          ? 'bg-gray-800 text-white placeholder-gray-500 border-gray-700' 
+                          : 'bg-white text-gray-900 placeholder-gray-400 border-gray-200'
+                      } border shadow-sm`}
                       disabled={isLoading || isUploading}
                     />
                     <div className="absolute right-2 top-2 flex gap-1">
@@ -1001,11 +1078,11 @@ function App() {
                         type="button"
                         onClick={triggerFileInput}
                         disabled={isLoading || isUploading}
-                        className={`p-2 rounded-full ${
+                        className={`p-2 rounded-lg ${
                           darkMode 
-                            ? 'hover:bg-zinc-700 text-zinc-400 hover:text-zinc-300' 
-                            : 'hover:bg-gray-100 text-gray-500 hover:text-gray-600'
-                        }`}
+                            ? 'hover:bg-gray-700/50 text-gray-400 hover:text-gray-300' 
+                            : 'hover:bg-gray-100/50 text-gray-500 hover:text-gray-600'
+                        } transition-colors`}
                         title="Upload file"
                       >
                         <Upload size={20} />
@@ -1023,13 +1100,13 @@ function App() {
                   <button
                     type="submit"
                     disabled={!inputMessage.trim() || isLoading || isUploading}
-                    className={`p-3 rounded-lg flex items-center justify-center ${
+                    className={`p-3 rounded-xl flex items-center justify-center transition-all ${
                       inputMessage.trim() && !isLoading && !isUploading
-                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-md'
                         : darkMode
-                        ? 'bg-zinc-800 text-zinc-500'
+                        ? 'bg-gray-800 text-gray-500'
                         : 'bg-gray-200 text-gray-500'
-                    } transition-colors`}
+                    }`}
                   >
                     {isLoading || isUploading ? (
                       <RefreshCw size={20} className="animate-spin" />
@@ -1039,7 +1116,7 @@ function App() {
                   </button>
                 </form>
                 <div className={`text-xs mt-2 text-center ${
-                  darkMode ? 'text-zinc-500' : 'text-gray-500'
+                  darkMode ? 'text-gray-500' : 'text-gray-400'
                 }`}>
                   {isUploading ? 'Uploading file...' : 'Trainify may produce inaccurate information'}
                 </div>
@@ -1048,48 +1125,82 @@ function App() {
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center pt-12 md:pt-0">
               <div className={`p-6 rounded-full mb-6 ${
-                darkMode ? 'bg-zinc-800' : 'bg-gray-100'
+                darkMode ? 'bg-gray-800' : 'bg-gray-100'
               }`}>
-                <MessageSquare size={48} className={darkMode ? 'text-zinc-500' : 'text-gray-400'} />
+                <MessageSquare size={48} className={darkMode ? 'text-gray-500' : 'text-gray-400'} />
               </div>
               <h2 className="text-2xl font-medium mb-2">No conversation selected</h2>
               <p className={`max-w-md text-center mb-6 px-4 ${
-                darkMode ? 'text-zinc-400' : 'text-gray-500'
+                darkMode ? 'text-gray-400' : 'text-gray-500'
               }`}>
                 Select an existing conversation from the sidebar or create a new one to get started
               </p>
               <button
                 onClick={createNewChat}
-                className="flex items-center justify-center gap-2 bg-blue-600 text-white py-2.5 px-6 rounded-lg hover:bg-blue-700 transition-colors shadow-md font-medium"
+                className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 px-6 rounded-xl hover:from-blue-500 hover:to-indigo-500 transition-all shadow-lg font-medium"
               >
                 <Plus size={20} />
                 New Conversation
               </button>
               <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4 max-w-md px-4">
-                <div className={`p-4 rounded-lg ${
-                  darkMode ? 'bg-zinc-800' : 'bg-gray-100'
+                <div className={`p-4 rounded-xl ${
+                  darkMode ? 'bg-gray-800/50' : 'bg-gray-100'
+                } border ${
+                  darkMode ? 'border-gray-700' : 'border-gray-200'
                 }`}>
                   <div className="flex items-center gap-2 mb-2">
                     <AlignLeft size={18} className={darkMode ? 'text-blue-400' : 'text-blue-600'} />
                     <h3 className="font-medium">Language Practice</h3>
                   </div>
                   <p className={`text-sm ${
-                    darkMode ? 'text-zinc-400' : 'text-gray-600'
+                    darkMode ? 'text-gray-400' : 'text-gray-600'
                   }`}>
                     Improve your conversation skills with AI-powered practice
                   </p>
                 </div>
-                <div className={`p-4 rounded-lg ${
-                  darkMode ? 'bg-zinc-800' : 'bg-gray-100'
+                <div className={`p-4 rounded-xl ${
+                  darkMode ? 'bg-gray-800/50' : 'bg-gray-100'
+                } border ${
+                  darkMode ? 'border-gray-700' : 'border-gray-200'
                 }`}>
                   <div className="flex items-center gap-2 mb-2">
                     <BookOpen size={18} className={darkMode ? 'text-purple-400' : 'text-purple-600'} />
                     <h3 className="font-medium">Document Translation</h3>
                   </div>
                   <p className={`text-sm ${
-                    darkMode ? 'text-zinc-400' : 'text-gray-600'
+                    darkMode ? 'text-gray-400' : 'text-gray-600'
                   }`}>
                     Upload files and get translations with explanations
+                  </p>
+                </div>
+                <div className={`p-4 rounded-xl ${
+                  darkMode ? 'bg-gray-800/50' : 'bg-gray-100'
+                } border ${
+                  darkMode ? 'border-gray-700' : 'border-gray-200'
+                }`}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Languages size={18} className={darkMode ? 'text-green-400' : 'text-green-600'} />
+                    <h3 className="font-medium">Grammar Assistance</h3>
+                  </div>
+                  <p className={`text-sm ${
+                    darkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>
+                    Get detailed explanations of grammar rules
+                  </p>
+                </div>
+                <div className={`p-4 rounded-xl ${
+                  darkMode ? 'bg-gray-800/50' : 'bg-gray-100'
+                } border ${
+                  darkMode ? 'border-gray-700' : 'border-gray-200'
+                }`}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Zap size={18} className={darkMode ? 'text-yellow-400' : 'text-yellow-600'} />
+                    <h3 className="font-medium">Advanced AI</h3>
+                  </div>
+                  <p className={`text-sm ${
+                    darkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>
+                    Switch to advanced model for complex queries
                   </p>
                 </div>
               </div>
@@ -1101,4 +1212,4 @@ function App() {
   );
 }
 
-export default App;  
+export default App;
