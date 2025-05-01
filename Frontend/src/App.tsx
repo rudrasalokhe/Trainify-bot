@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageSquarePlus, Send, MessageSquare, Trash2, Download, ChevronLeft, ChevronRight, Copy, Upload, Plus, AlignLeft, Sparkles, Settings, RefreshCw, BookOpen, Star, Cpu, Menu, X } from 'lucide-react';
+import { MessageSquarePlus, Send, MessageSquare, Trash2, Download, Copy, Upload, Plus, Sparkles, Settings, RefreshCw, BookOpen, Star, Cpu, Menu, X, ChevronDown } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { SignedIn, SignedOut, SignIn, UserButton, useAuth } from '@clerk/clerk-react';
 
@@ -31,18 +31,18 @@ interface DeleteConfirmProps {
 }
 
 const DeleteConfirm: React.FC<DeleteConfirmProps> = ({ onConfirm, onCancel, message }) => (
-  <div className="absolute right-0 top-0 bg-zinc-800 rounded-lg shadow-xl p-3 z-10 border border-zinc-700 animate-fade-in">
-    <p className="text-sm mb-2">{message}</p>
+  <div className="absolute right-0 top-0 bg-white dark:bg-zinc-800 rounded-lg shadow-xl p-3 z-10 border border-gray-200 dark:border-zinc-700 animate-fade-in">
+    <p className="text-sm mb-2 dark:text-zinc-100">{message}</p>
     <div className="flex gap-2 justify-end">
       <button
         onClick={onCancel}
-        className="px-3 py-1 text-sm bg-zinc-700 rounded hover:bg-zinc-600 transition-colors"
+        className="px-3 py-1 text-sm bg-gray-100 dark:bg-zinc-700 rounded hover:bg-gray-200 dark:hover:bg-zinc-600 transition-colors"
       >
         Cancel
       </button>
       <button
         onClick={onConfirm}
-        className="px-3 py-1 text-sm bg-red-600 rounded hover:bg-red-500 transition-colors"
+        className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
       >
         Delete
       </button>
@@ -64,7 +64,6 @@ const languages = [
   { value: 'Italian', label: 'Italiano' },
 ];
 
-// Base API URL - points to your deployed backend
 const API_BASE_URL = 'https://trainify-bot.onrender.com';
 
 function App() {
@@ -77,15 +76,14 @@ function App() {
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
   const [favoriteChats, setFavoriteChats] = useState<string[]>([]);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Check screen size and adjust sidebar
   useEffect(() => {
     const handleResize = () => {
       setShowSidebar(window.innerWidth > 768);
@@ -95,13 +93,11 @@ function App() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Load chats from localStorage on initial render
   useEffect(() => {
     const savedChats = localStorage.getItem('trainify-chats');
     if (savedChats) {
       try {
         const parsedChats = JSON.parse(savedChats);
-        // Convert string dates back to Date objects
         parsedChats.forEach((chat: Chat) => {
           chat.createdAt = new Date(chat.createdAt);
           chat.messages.forEach((msg: Message) => {
@@ -123,28 +119,23 @@ function App() {
       }
     }
     
-    // Focus input field when component mounts
     if (inputRef.current) {
       inputRef.current.focus();
     }
   }, []);
 
-  // Save chats to localStorage whenever they change
   useEffect(() => {
     localStorage.setItem('trainify-chats', JSON.stringify(chats));
   }, [chats]);
   
-  // Save favorites to localStorage
   useEffect(() => {
     localStorage.setItem('trainify-favorites', JSON.stringify(favoriteChats));
   }, [favoriteChats]);
 
-  // Scroll to bottom of messages
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Scroll when messages update
   useEffect(() => {
     scrollToBottom();
   }, [currentChat?.messages]);
@@ -160,9 +151,8 @@ function App() {
     };
     setChats([newChat, ...chats]);
     setCurrentChat(newChat);
-    setShowMobileMenu(false); // Close mobile menu on new chat
+    setShowMobileMenu(false);
     
-    // Focus input field after creating new chat
     setTimeout(() => {
       if (inputRef.current) {
         inputRef.current.focus();
@@ -195,7 +185,7 @@ function App() {
     };
     setChats([newChat, ...chats]);
     setCurrentChat(newChat);
-    setShowMobileMenu(false); // Close mobile menu on copy
+    setShowMobileMenu(false);
   };
 
   const toggleFavorite = (chatId: string) => {
@@ -274,7 +264,6 @@ function App() {
       setChats(chats.map(chat => chat.id === currentChat.id ? updatedChat : chat));
       setCurrentChat(updatedChat);
       
-      // Update chat title if it's the first message
       if (updatedChat.messages.length === 2 && updatedChat.title === 'New Conversation') {
         let title = userMessage.content;
         if (title.length > 30) {
@@ -300,7 +289,6 @@ function App() {
       setCurrentChat(updatedChat);
     } finally {
       setIsLoading(false);
-      // Focus input field after sending message
       if (inputRef.current) {
         inputRef.current.focus();
       }
@@ -313,7 +301,6 @@ function App() {
       setCurrentChat(null);
     }
     setDeleteConfirm(null);
-    // Also remove from favorites if present
     if (favoriteChats.includes(chatId)) {
       setFavoriteChats(favoriteChats.filter(id => id !== chatId));
     }
@@ -430,7 +417,6 @@ function App() {
       setChats(chats.map(chat => chat.id === currentChat.id ? updatedChat : chat));
       setCurrentChat(updatedChat);
       
-      // Update chat title if it's the first message
       if (updatedChat.messages.length === 2 && updatedChat.title === 'New Conversation') {
         const title = `File: ${file.name}`;
         renameChat(updatedChat.id, title);
@@ -464,24 +450,25 @@ function App() {
     fileInputRef.current?.click();
   };
 
-  const handleLanguageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleLanguageChange = (language: string) => {
     if (!currentChat) return;
    
     const updatedChat = {
       ...currentChat,
-      language: e.target.value
+      language
     };
 
     setChats(chats.map(chat => chat.id === currentChat.id ? updatedChat : chat));
     setCurrentChat(updatedChat);
+    setShowLanguageDropdown(false);
   };
   
-  const handleModelChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleModelChange = (modelType: 'standard' | 'advanced') => {
     if (!currentChat) return;
    
     const updatedChat = {
       ...currentChat,
-      modelType: e.target.value as 'standard' | 'advanced'
+      modelType
     };
 
     setChats(chats.map(chat => chat.id === currentChat.id ? updatedChat : chat));
@@ -512,7 +499,6 @@ function App() {
     }
   };
   
-  // Group chats by date
   const groupChatsByDate = () => {
     const grouped: { [key: string]: Chat[] } = {};
     
@@ -530,7 +516,7 @@ function App() {
   const groupedChats = groupChatsByDate();
 
   return (
-    <div className={`flex h-screen ${darkMode ? 'bg-gradient-to-b from-zinc-900 to-zinc-950 text-zinc-100' : 'bg-gradient-to-b from-gray-50 to-gray-100 text-gray-900'}`}>
+    <div className={`flex h-screen ${darkMode ? 'bg-zinc-950 text-zinc-100' : 'bg-gray-50 text-gray-900'}`}>
       <SignedOut>
         <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-blue-900 to-purple-900">
           <div className="p-8 rounded-xl shadow-2xl w-full max-w-md mx-4 backdrop-blur-sm bg-black bg-opacity-20 border border-white border-opacity-10">
@@ -582,14 +568,14 @@ function App() {
           />
         )}
 
-        {/* Sidebar - mobile version */}
+        {/* Sidebar */}
         <div className={`fixed md:relative z-20 h-full transition-transform duration-300 ease-in-out ${
           showMobileMenu ? 'translate-x-0' : '-translate-x-full'
         } md:translate-x-0 ${
           showSidebar ? 'w-72' : 'w-0'
         } ${
           darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-gray-200'
-        } border-r flex flex-col overflow-hidden shadow-xl`}>
+        } border-r flex flex-col overflow-hidden`}>
           <div className={`p-4 border-b flex justify-between items-center ${
             darkMode ? 'border-zinc-800' : 'border-gray-200'
           } mt-12 md:mt-0`}>
@@ -597,63 +583,26 @@ function App() {
               <Cpu size={24} className="text-blue-500" />
               <h1 className="font-bold text-xl">Trainify.ai</h1>
             </div>
-            <div className="md:flex items-center gap-2 hidden">
+            <div className="flex items-center gap-2">
               <button 
-                onClick={() => setShowSettings(!showSettings)} 
+                onClick={() => setDarkMode(!darkMode)} 
                 className={`p-2 rounded-full ${
-                  darkMode 
-                    ? 'hover:bg-zinc-800' 
-                    : 'hover:bg-gray-100'
+                  darkMode ? 'hover:bg-zinc-800' : 'hover:bg-gray-100'
                 }`}
               >
-                <Settings size={18} className={darkMode ? 'text-zinc-400' : 'text-gray-600'} />
+                {darkMode ? (
+                  <span className="text-sm">☀️</span>
+                ) : (
+                  <span className="text-sm">🌙</span>
+                )}
               </button>
               <UserButton afterSignOutUrl="/" />
             </div>
           </div>
           
-          {showSettings && (
-            <div className={`p-4 border-b ${
-              darkMode ? 'border-zinc-800 bg-zinc-800' : 'border-gray-200 bg-gray-50'
-            }`}>
-              <h2 className="font-medium mb-3">Settings</h2>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm">Dark Mode</span>
-                <button 
-                  onClick={() => setDarkMode(!darkMode)}
-                  className={`w-12 h-6 rounded-full relative transition-colors ${
-                    darkMode ? 'bg-blue-600' : 'bg-gray-300'
-                  }`}
-                >
-                  <span className={`absolute top-1 w-4 h-4 rounded-full transition-transform transform ${
-                    darkMode ? 'bg-white translate-x-6' : 'bg-white translate-x-1'
-                  }`}></span>
-                </button>
-              </div>
-              <div className="mt-4">
-                <button 
-                  onClick={() => {
-                    if (confirm('Are you sure you want to clear all conversations? This cannot be undone.')) {
-                      setChats([]);
-                      setCurrentChat(null);
-                      setFavoriteChats([]);
-                    }
-                  }}
-                  className={`text-sm py-1 px-2 rounded ${
-                    darkMode 
-                      ? 'bg-red-900 hover:bg-red-800 text-red-200' 
-                      : 'bg-red-100 hover:bg-red-200 text-red-800'
-                  }`}
-                >
-                  Clear all conversations
-                </button>
-              </div>
-            </div>
-          )}
-          
           <button
             onClick={createNewChat}
-            className="m-4 flex items-center justify-center gap-2 bg-blue-600 text-white py-2.5 px-4 rounded-lg hover:bg-blue-700 transition-colors shadow-md font-medium"
+            className="m-4 flex items-center justify-center gap-2 bg-blue-600 text-white py-2.5 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium"
           >
             <Plus size={20} />
             New Conversation
@@ -780,7 +729,7 @@ function App() {
         <div className="flex-1 flex flex-col pt-12 md:pt-0">
           {currentChat ? (
             <>
-              <div className={`p-4 border-b flex justify-between items-center shadow-md z-10 ${
+              <div className={`p-4 border-b flex justify-between items-center ${
                 darkMode 
                   ? 'border-zinc-800 bg-zinc-900' 
                   : 'border-gray-200 bg-white'
@@ -797,16 +746,47 @@ function App() {
                       <Sparkles size={18} className="text-blue-500" />
                       {currentChat.title}
                     </h2>
-                    <p className={`text-sm ${darkMode ? 'text-zinc-400' : 'text-gray-500'}`}>
-                      AI-Powered Language Assistant
-                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}
+                      className={`flex items-center gap-1 rounded-lg px-3 py-1.5 border text-sm ${
+                        darkMode 
+                          ? 'bg-zinc-800 text-zinc-100 border-zinc-700' 
+                          : 'bg-white text-gray-800 border-gray-200'
+                      }`}
+                    >
+                      {currentChat.language || 'English'}
+                      <ChevronDown size={16} />
+                    </button>
+                    {showLanguageDropdown && (
+                      <div className={`absolute right-0 mt-1 w-40 rounded-lg shadow-lg z-10 ${
+                        darkMode ? 'bg-zinc-800 border-zinc-700' : 'bg-white border-gray-200'
+                      } border`}>
+                        {languages.map((lang) => (
+                          <button
+                            key={lang.value}
+                            onClick={() => handleLanguageChange(lang.value)}
+                            className={`w-full text-left px-4 py-2 text-sm hover:bg-blue-500 hover:text-white ${
+                              darkMode ? 'hover:bg-blue-600' : 'hover:bg-blue-500'
+                            } ${
+                              currentChat.language === lang.value 
+                                ? (darkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white')
+                                : (darkMode ? 'text-zinc-100' : 'text-gray-800')
+                            }`}
+                          >
+                            {lang.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   <select
                     value={currentChat.modelType || 'standard'}
-                    onChange={handleModelChange}
-                    className={`rounded-lg px-3 py-1.5 border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    onChange={(e) => handleModelChange(e.target.value as 'standard' | 'advanced')}
+                    className={`rounded-lg px-3 py-1.5 border text-sm focus:outline-none ${
                       darkMode 
                         ? 'bg-zinc-800 text-zinc-100 border-zinc-700' 
                         : 'bg-white text-gray-800 border-gray-200'
@@ -815,23 +795,6 @@ function App() {
                   >
                     <option value="standard">Standard</option>
                     <option value="advanced">Advanced</option>
-                  </select>
-                  
-                  <select
-                    value={currentChat.language || 'English'}
-                    onChange={handleLanguageChange}
-                    className={`rounded-lg px-3 py-1.5 border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      darkMode 
-                        ? 'bg-zinc-800 text-zinc-100 border-zinc-700' 
-                        : 'bg-white text-gray-800 border-gray-200'
-                    }`}
-                    aria-label="Select language"
-                  >
-                    {languages.map((lang) => (
-                      <option key={lang.value} value={lang.value}>
-                        {lang.label}
-                      </option>
-                    ))}
                   </select>
                 </div>
               </div>
@@ -850,38 +813,6 @@ function App() {
                     }`}>
                       Ask questions, upload files, or practice your language skills with Trainify AI
                     </p>
-                    <div className="flex gap-3 flex-wrap justify-center">
-                      <button
-                        onClick={() => {
-                          setInputMessage('Can you help me practice my conversation skills?');
-                          if (inputRef.current) {
-                            inputRef.current.focus();
-                          }
-                        }}
-                        className={`px-4 py-2 rounded-lg text-sm ${
-                          darkMode 
-                            ? 'bg-zinc-800 hover:bg-zinc-700' 
-                            : 'bg-gray-100 hover:bg-gray-200'
-                        }`}
-                      >
-                        Practice conversation
-                      </button>
-                      <button
-                        onClick={() => {
-                          setInputMessage('Explain this grammar rule: ');
-                          if (inputRef.current) {
-                            inputRef.current.focus();
-                          }
-                        }}
-                        className={`px-4 py-2 rounded-lg text-sm ${
-                          darkMode 
-                            ? 'bg-zinc-800 hover:bg-zinc-700' 
-                            : 'bg-gray-100 hover:bg-gray-200'
-                        }`}
-                      >
-                        Ask about grammar
-                      </button>
-                    </div>
                   </div>
                 ) : (
                   <div className="space-y-6">
@@ -896,7 +827,7 @@ function App() {
                           className={`max-w-[90%] md:max-w-3xl rounded-lg p-4 relative ${
                             message.sender === 'user'
                               ? darkMode
-                                ? 'bg-blue-900 text-blue-100'
+                                ? 'bg-blue-600 text-white'
                                 : 'bg-blue-600 text-white'
                               : darkMode
                               ? 'bg-zinc-800 text-zinc-100'
@@ -1060,39 +991,11 @@ function App() {
               </p>
               <button
                 onClick={createNewChat}
-                className="flex items-center justify-center gap-2 bg-blue-600 text-white py-2.5 px-6 rounded-lg hover:bg-blue-700 transition-colors shadow-md font-medium"
+                className="flex items-center justify-center gap-2 bg-blue-600 text-white py-2.5 px-6 rounded-lg hover:bg-blue-700 transition-colors font-medium"
               >
                 <Plus size={20} />
                 New Conversation
               </button>
-              <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4 max-w-md px-4">
-                <div className={`p-4 rounded-lg ${
-                  darkMode ? 'bg-zinc-800' : 'bg-gray-100'
-                }`}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <AlignLeft size={18} className={darkMode ? 'text-blue-400' : 'text-blue-600'} />
-                    <h3 className="font-medium">Language Practice</h3>
-                  </div>
-                  <p className={`text-sm ${
-                    darkMode ? 'text-zinc-400' : 'text-gray-600'
-                  }`}>
-                    Improve your conversation skills with AI-powered practice
-                  </p>
-                </div>
-                <div className={`p-4 rounded-lg ${
-                  darkMode ? 'bg-zinc-800' : 'bg-gray-100'
-                }`}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <BookOpen size={18} className={darkMode ? 'text-purple-400' : 'text-purple-600'} />
-                    <h3 className="font-medium">Document Translation</h3>
-                  </div>
-                  <p className={`text-sm ${
-                    darkMode ? 'text-zinc-400' : 'text-gray-600'
-                  }`}>
-                    Upload files and get translations with explanations
-                  </p>
-                </div>
-              </div>
             </div>
           )}
         </div>
@@ -1101,4 +1004,4 @@ function App() {
   );
 }
 
-export default App;    
+export default App;
