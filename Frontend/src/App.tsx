@@ -519,7 +519,7 @@ function App() {
     <div className={`flex h-screen ${darkMode ? 'bg-zinc-950 text-zinc-100' : 'bg-gray-50 text-gray-900'}`}>
       <SignedOut>
         <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-blue-900 to-purple-900">
-          <div className="p-8 rounded-xl shadow-2xl w-full max-w-md mx-4 backdrop-blur-sm bg-black bg-opacity-20 border border-white border-opacity-10">
+          <div className="p-6 rounded-xl shadow-2xl w-full max-w-md mx-4 backdrop-blur-sm bg-black bg-opacity-20 border border-white border-opacity-10">
             <div className="flex items-center justify-center mb-6">
               <Cpu size={32} className="text-blue-400 mr-2" />
               <h2 className="text-3xl font-bold text-white">Trainify.ai</h2>
